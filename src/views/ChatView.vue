@@ -1,11 +1,12 @@
 <script setup lang="ts">
-	import ChatInput from '../components/ChatInput.vue'
+	// import ChatInput from '../components/ChatInput.vue'
 	import { ref } from 'vue'
+	import type { Ref } from 'vue'
 
 	// Refs
-	const question = ref('')
-	const disabled = ref(false)
-	const chats = ref([])
+	const question: Ref<string> = ref('')
+	const disabled: Ref<boolean> = ref(false)
+	const chats: Ref<Array<string>> = ref([])
 
 	const url = 'https://vgbln-openai.herokuapp.com' || 'http://localhost:3000'
 
@@ -30,8 +31,8 @@
 				disabled.value = false
 				question.value = ''
 
-				// Set focus to input field
-				document.querySelector('input').focus()
+				// Set focus to input field with vue 3 ref
+				// document.querySelector('input').focus()
 			})
 			.catch((error) => {
 				console.error('Error:', error)
@@ -51,6 +52,7 @@
 				class="chats-input"
 				type="text"
 				placeholder="Ask me something"
+				ref="question"
 				v-model="question"
 				:disabled="disabled"
 				autofocus
