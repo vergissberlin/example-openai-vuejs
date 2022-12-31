@@ -1,5 +1,5 @@
 <script setup lang="ts">
-	// import ChatInput from '../components/ChatInput.vue'
+	import LoadingIndicator from '../components/LoadingIndicator.vue'
 	import { ref } from 'vue'
 	import type { Ref } from 'vue'
 
@@ -29,14 +29,6 @@
 				// Reset question
 				disabled.value = false
 				question.value = ''
-
-                // Scroll to bottom
-                const message = document.querySelector('.message')
-                message.scrollTop = message.scrollHeight
-
-                // Focus input field
-                const input = document.querySelector('input')
-                input.focus()
 			})
 			.catch((error) => {
 				console.error('Error:', error)
@@ -46,6 +38,7 @@
 
 <template>
 	<main>
+		<LoadingIndicator v-if="disabled" />
 		<ul class="message">
 			<li v-for="chat in chats" :key="chat">{{ chat }}</li>
 		</ul>
@@ -92,16 +85,16 @@
 	.chats-input input,
 	.chats-input button {
 		padding: 1em 1.2em;
-		border-radius: .3em;
+		border-radius: 0.3em;
 		border: 0;
 	}
 	.chats-input input {
 		border-bottom-right-radius: 0;
-        border-top-right-radius: 0;
+		border-top-right-radius: 0;
 	}
 	.chats-input button {
 		border-bottom-left-radius: 0;
-        border-top-left-radius: 0;
+		border-top-left-radius: 0;
 	}
 
 	@media (prefers-color-scheme: dark) {
