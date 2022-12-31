@@ -1,5 +1,5 @@
 <template>
-	<main>
+	<main class="container">
 		<h2>Example project for an AI chat</h2>
 		<p>
 			This is an example project for an AI chat. It uses the

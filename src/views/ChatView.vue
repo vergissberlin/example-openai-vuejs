@@ -7,7 +7,6 @@
 	const question: Ref<string> = ref('')
 	const disabled: Ref<boolean> = ref(false)
 	const chats: Ref<Array<string>> = ref([])
-
 	const url = 'https://vgbln-openai.herokuapp.com' || 'http://localhost:3000'
 
 	// Methods
@@ -19,7 +18,7 @@
 		const questionEncoded = encodeURIComponent(question.value)
 		chats.value.push(question.value)
 		// fetch get request with question as parameter and json response  to localhost 3000 with question
-		// set chats to response
+		// Set chats to response
 		await fetch(`${url}/?question=${questionEncoded}`)
 			.then((response) => response.json())
 			.then((data) => {
@@ -31,8 +30,13 @@
 				disabled.value = false
 				question.value = ''
 
-				// Set focus to input field with vue 3 ref
-				// document.querySelector('input').focus()
+                // Scroll to bottom
+                const message = document.querySelector('.message')
+                message.scrollTop = message.scrollHeight
+
+                // Focus input field
+                const input = document.querySelector('input')
+                input.focus()
 			})
 			.catch((error) => {
 				console.error('Error:', error)
@@ -49,10 +53,8 @@
 	<footer>
 		<div class="chats-input">
 			<input
-				class="chats-input"
 				type="text"
 				placeholder="Ask me something"
-				ref="question"
 				v-model="question"
 				:disabled="disabled"
 				autofocus
@@ -80,22 +82,26 @@
 	}
 
 	.chats-input {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.3em;
-		margin: 1rem 0;
-	}
-
-	.chats-input input {
-		width: 30vw;
+		display: grid;
+		grid-direction: column;
+		grid-template-columns: 1fr auto;
+		gap: 0;
+		margin: 1rem var(--container-padding-horizontal);
 	}
 
 	.chats-input input,
 	.chats-input button {
 		padding: 1em 1.2em;
-		border-radius: 0.2em;
+		border-radius: .3em;
 		border: 0;
+	}
+	.chats-input input {
+		border-bottom-right-radius: 0;
+        border-top-right-radius: 0;
+	}
+	.chats-input button {
+		border-bottom-left-radius: 0;
+        border-top-left-radius: 0;
 	}
 
 	@media (prefers-color-scheme: dark) {
