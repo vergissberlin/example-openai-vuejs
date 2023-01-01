@@ -65,8 +65,12 @@
 		<h2 class="container">Image generation</h2>
 		<LoadingIndicator v-if="disabled" />
 		<ul class="message" ref="messagesElement">
-			<li v-for="promptItem in prompts" :key="promptItem">{{ promptItem }}</li>
-			<li v-for="result in results" :key="result"><img :src="result" /></li>
+			<li v-for="result in results" :key="result">
+				<picture>
+					<img :src="result.image" />
+					<figcaption>{{ result.prompt }}</figcaption>
+				</picture>
+			</li>
 		</ul>
 	</main>
 	<footer>
