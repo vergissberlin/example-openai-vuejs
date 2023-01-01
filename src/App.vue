@@ -7,6 +7,7 @@
 		<h1>Vue 3 + OpenAI</h1>
 		<nav>
 			<RouterLink to="/">Chat</RouterLink>
+			<RouterLink to="/image">Image</RouterLink>
 			<RouterLink to="/about">About</RouterLink>
 		</nav>
 	</header>
@@ -39,6 +40,7 @@
 		color: #111;
 		font-family: 'Helvetica Neue', sans-serif;
 		margin: 0 auto;
+		scroll-behavior: smooth;
 	}
 	.container {
 		margin: 1rem var(--container-padding-horizontal);

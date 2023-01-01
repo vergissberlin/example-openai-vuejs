@@ -55,7 +55,9 @@ yarn lint
 
 ## ToDo
 
-- [ ] Loading animation
+- [ ] Make model select- and configurable
+- [ ] Add more models for code and image generation
+- [x] Loading animation
 - [ ] Change favicon and title
 - [ ] Add more tests
 - [ ] Add more documentation

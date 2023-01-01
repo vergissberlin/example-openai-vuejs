@@ -4,9 +4,10 @@
 	import type { Ref } from 'vue'
 
 	// Refs
-	const question: Ref<string> = ref('')
+	const prompt: Ref<string> = ref('')
 	const disabled: Ref<boolean> = ref(false)
-	const chats: Ref<Array<string>> = ref([])
+	const results: Ref<Array<string>> = ref([])
+	const prompts: Ref<Array<string>> = ref([])
 	const url = 'https://vgbln-openai.herokuapp.com' || 'http://localhost:3000'
 
 	const messagesElement = ref<HTMLDivElement | null>(null)
@@ -23,31 +24,26 @@
 		// Disable input field
 		disabled.value = true
 
-		// URL encode question
-		const questionEncoded = encodeURIComponent(question.value)
-		chats.value.push(question.value)
-		// fetch get request with question as parameter and json response  to localhost 3000 with question
-		// Set chats to response
-		await fetch(`${url}/text/?prompt=${questionEncoded}`)
+		// URL encode prompt
+		const promptEncoded = encodeURIComponent(prompt.value)
+		prompts.value.push(prompt.value)
+		// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
+		// Set results to response
+		await fetch(`${url}/image/?prompt=${promptEncoded}`)
 			.then((response) => response.json())
 			.then((data) => {
 				console.log('Success:', data)
-				// remove the 2 new lines at the beginning of the answer
-				data.text = data.text.replace(/^\n\n/, '')
 
-				// replace new line with br
-				data.text = data.text.replace(/\n/g, '<br />')
-
-				// Push new answer to chats array
-				chats.value.push(data.text)
+				// Push new answer to results array
+				results.value.push(data.data[0].url)
 
 				// Scroll to bottom of the page
 				const div = promptElement.value as HTMLDivElement
 				div.scrollIntoView()
 
-				// Reset question
+				// Reset prompt
 				disabled.value = false
-				question.value = ''
+				prompt.value = ''
 			})
 			.catch((error) => {
 				console.error('Error:', error)
@@ -56,19 +52,22 @@
 </script>
 
 <template>
-	<main class="ov-scroll">
-        <h2 class="container">Chat with AI</h2>
+	<main>
+		<h2 class="container">Image generation</h2>
 		<LoadingIndicator v-if="disabled" />
+		<ul class="message">
+			<li v-for="promptItem in prompts" :key="promptItem">{{ promptItem }}</li>
+		</ul>
 		<ul class="message" ref="messagesElement">
-			<li v-for="chat in chats" :key="chat" v-html="chat"></li>
+			<li v-for="result in results" :key="result"><img :src="result" /></li>
 		</ul>
 	</main>
 	<footer>
-		<div class="chats-input" ref="promptElement">
+		<div class="results-input" ref="promptElement">
 			<input
 				type="text"
-				placeholder="Ask me something"
-				v-model="question"
+				placeholder="Describe your image. Use your phantasie!"
+				v-model="prompt"
 				:disabled="disabled"
 				autofocus
 				@keyup.enter="askAi()"
@@ -94,7 +93,7 @@
 		background: #222;
 	}
 
-	.chats-input {
+	.results-input {
 		display: grid;
 		grid-direction: column;
 		grid-template-columns: 1fr auto;
@@ -102,17 +101,17 @@
 		margin: 1rem var(--container-padding-horizontal);
 	}
 
-	.chats-input input,
-	.chats-input button {
+	.results-input input,
+	.results-input button {
 		padding: 1em 1.2em;
 		border-radius: 0.3em;
 		border: 0;
 	}
-	.chats-input input {
+	.results-input input {
 		border-bottom-right-radius: 0;
 		border-top-right-radius: 0;
 	}
-	.chats-input button {
+	.results-input button {
 		border-bottom-left-radius: 0;
 		border-top-left-radius: 0;
 	}
