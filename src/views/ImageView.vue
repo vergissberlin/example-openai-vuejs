@@ -3,11 +3,16 @@
 	import { ref, nextTick, onMounted } from 'vue'
 	import type { Ref } from 'vue'
 
+	// Types
+	type Results = {
+		prompt: string
+		image: string
+	}
+
 	// Refs
 	const prompt: Ref<string> = ref('')
 	const disabled: Ref<boolean> = ref(false)
-	const results: Ref<Array<string>> = ref([])
-	const prompts: Ref<Array<string>> = ref([])
+	const results: Ref<Array<Results>> = ref([])
 	const url = 'https://vgbln-openai.herokuapp.com' || 'http://localhost:3000'
 
 	const messagesElement = ref<HTMLDivElement | null>(null)
@@ -21,14 +26,13 @@
 
 	// Methods
 	const askAi = async (): Promise<void> => {
-// Dieses wunderschöne und intelligente Mädchen mit den grünen Haaren und der Lederjacke vom Gymnasium!
+		// Dieses wunderschöne und intelligente Mädchen mit den grünen Haaren und der Lederjacke vom Gymnasium!
 
 		// Disable input field
 		disabled.value = true
 
 		// URL encode prompt
 		const promptEncoded = encodeURIComponent(prompt.value)
-		prompts.value.push(prompt.value)
 		// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
 		// Set results to response
 		await fetch(`${url}/image/?prompt=${promptEncoded}`)
@@ -37,7 +41,10 @@
 				console.log('Success:', data)
 
 				// Push new answer to results array
-				results.value.push(data.image)
+				results.value.push({
+					prompt: prompt.value,
+					image: data.image
+				})
 
 				// Scroll to bottom of the page
 				const div = promptElement.value as HTMLDivElement
@@ -57,10 +64,8 @@
 	<main>
 		<h2 class="container">Image generation</h2>
 		<LoadingIndicator v-if="disabled" />
-		<ul class="message">
-			<li v-for="promptItem in prompts" :key="promptItem">{{ promptItem }}</li>
-		</ul>
 		<ul class="message" ref="messagesElement">
+			<li v-for="promptItem in prompts" :key="promptItem">{{ promptItem }}</li>
 			<li v-for="result in results" :key="result"><img :src="result" /></li>
 		</ul>
 	</main>
