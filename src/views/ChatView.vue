@@ -12,14 +12,16 @@
 	const messagesElement = ref<HTMLDivElement | null>(null)
 	const promptElement = ref<HTMLDivElement | null>(null)
 
+	// Type for prompt templates
+	type PromptTemplates = 'joda' | 'gpt3' | 'steve' | 'elon' | 'trump' | 'marvin'
+
 	const promptTemplates = {
-		joda: 'Talk like Joda: ',
-		gpt3: 'Talk like GPT-3: ',
-		steve: 'Talk like Steve Jobs. Very polite and push people forward: ',
-		elon: 'Talk like Elon Musk: ',
-		trump: 'Talk like Donald Trump: ',
-		marvin: 'Talk like Marvin the Paranoid Android: '
-	}
+		joda: 'Write like Joda: ',
+		gpt3: 'Write like GPT-3: ',
+		steve: 'Write like Steve Jobs. Very polite and push people forward: ',
+		elon: 'Write like Elon Musk: ',
+		marvin: 'Write like Marvin the Paranoid Android: '
+	} as Record<PromptTemplates, string>
 
 	onMounted(async () => {
 		await nextTick()
@@ -33,6 +35,7 @@
 		disabled.value = true
 
 		// URL encode prompt
+        // @ts-ignore
 		const promptEncoded = encodeURIComponent(promptTemplates[configTemplate.value] + prompt.value)
 		chats.value.push(prompt.value)
 		// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt

@@ -21,6 +21,8 @@
 
 	// Methods
 	const askAi = async (): Promise<void> => {
+// Dieses wunderschöne und intelligente Mädchen mit den grünen Haaren und der Lederjacke vom Gymnasium!
+
 		// Disable input field
 		disabled.value = true
 
