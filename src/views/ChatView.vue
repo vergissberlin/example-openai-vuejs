@@ -4,13 +4,22 @@
 	import type { Ref } from 'vue'
 
 	// Refs
-	const question: Ref<string> = ref('')
+	const prompt: Ref<string> = ref('')
 	const disabled: Ref<boolean> = ref(false)
 	const chats: Ref<Array<string>> = ref([])
 	const url = 'https://vgbln-openai.herokuapp.com' || 'http://localhost:3000'
-
+	const configTemplate: Ref<string> = ref('marvin')
 	const messagesElement = ref<HTMLDivElement | null>(null)
 	const promptElement = ref<HTMLDivElement | null>(null)
+
+	const promptTemplates = {
+		joda: 'Talk like Joda: ',
+		gpt3: 'Talk like GPT-3: ',
+		steve: 'Talk like Steve Jobs. Very polite and push people forward: ',
+		elon: 'Talk like Elon Musk: ',
+		trump: 'Talk like Donald Trump: ',
+		marvin: 'Talk like Marvin the Paranoid Android: '
+	}
 
 	onMounted(async () => {
 		await nextTick()
@@ -23,12 +32,12 @@
 		// Disable input field
 		disabled.value = true
 
-		// URL encode question
-		const questionEncoded = encodeURIComponent(question.value)
-		chats.value.push(question.value)
-		// fetch get request with question as parameter and json response  to localhost 3000 with question
+		// URL encode prompt
+		const promptEncoded = encodeURIComponent(promptTemplates[configTemplate.value] + prompt.value)
+		chats.value.push(prompt.value)
+		// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
 		// Set chats to response
-		await fetch(`${url}/text/?prompt=${questionEncoded}`)
+		await fetch(`${url}/text/?prompt=${promptEncoded}`)
 			.then((response) => response.json())
 			.then((data) => {
 				console.log('Success:', data)
@@ -45,9 +54,9 @@
 				const div = promptElement.value as HTMLDivElement
 				div.scrollIntoView()
 
-				// Reset question
+				// Reset prompt
 				disabled.value = false
-				question.value = ''
+				prompt.value = ''
 			})
 			.catch((error) => {
 				console.error('Error:', error)
@@ -57,7 +66,7 @@
 
 <template>
 	<main class="ov-scroll">
-        <h2 class="container">Chat with AI</h2>
+		<h2 class="container">Chat with AI</h2>
 		<LoadingIndicator v-if="disabled" />
 		<ul class="message" ref="messagesElement">
 			<li v-for="chat in chats" :key="chat" v-html="chat"></li>
@@ -68,7 +77,7 @@
 			<input
 				type="text"
 				placeholder="Ask me something"
-				v-model="question"
+				v-model="prompt"
 				:disabled="disabled"
 				autofocus
 				@keyup.enter="askAi()"

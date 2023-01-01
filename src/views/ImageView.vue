@@ -35,7 +35,7 @@
 				console.log('Success:', data)
 
 				// Push new answer to results array
-				results.value.push(data.data[0].url)
+				results.value.push(data.image)
 
 				// Scroll to bottom of the page
 				const div = promptElement.value as HTMLDivElement
