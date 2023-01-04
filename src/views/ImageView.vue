@@ -3,25 +3,24 @@
 	import { ref, nextTick, onMounted } from 'vue'
 	import type { Ref } from 'vue'
 
-	// Types
-	type Results = {
-		prompt: string
-		image: string
+	// Interfaces
+	interface Result {
+		prompt?: string
+		image?: string
 	}
 
 	// Refs
 	const prompt: Ref<string> = ref('')
 	const disabled: Ref<boolean> = ref(false)
-	const results: Ref<Array<Results>> = ref([])
+	const results: Ref<Array<Result>> = ref([])
 	const url = 'https://vgbln-openai.herokuapp.com' || 'http://localhost:3000'
-
 	const messagesElement = ref<HTMLDivElement | null>(null)
 	const promptElement = ref<HTMLDivElement | null>(null)
 
 	onMounted(async () => {
 		await nextTick()
 		const div = messagesElement.value!.lastElementChild as HTMLDivElement
-		//div.scrollIntoView().catch(() => {})
+		// div.scrollIntoView().catch(() => {})
 	})
 
 	// Methods
@@ -62,10 +61,13 @@
 
 <template>
 	<main>
-		<h2 class="container">Image generation</h2>
 		<LoadingIndicator v-if="disabled" />
-		<ul class="message" ref="messagesElement">
-			<li v-for="result in results" :key="result">
+		<ul class="" ref="messagesElement">
+			<li
+				v-for="result in results"
+				:key="result"
+				class="px-12 py-3 even:bg-neutral-300 dark:even:bg-neutral-700 leading-0"
+			>
 				<picture>
 					<img :src="result.image" />
 					<figcaption>{{ result.prompt }}</figcaption>
@@ -73,71 +75,18 @@
 			</li>
 		</ul>
 	</main>
-	<footer>
-		<div class="results-input" ref="promptElement">
+
+	<footer class="px-12 py-4 w-screen">
+		<div ref="promptElement">
 			<input
 				type="text"
+				class="w-full border-2 border-gray-300 bg-white px-6 py-4 rounded-lg text-sm focus:outline-none focus:border-gray-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
 				placeholder="Describe your image. Use your phantasie!"
 				v-model="prompt"
 				:disabled="disabled"
 				autofocus
 				@keyup.enter="askAi()"
 			/>
-
-			<button @click="askAi()">Send</button>
 		</div>
 	</footer>
 </template>
-
-<style>
-	.message {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-		color: rgb(210, 219, 231, 0.8);
-	}
-	.message li {
-		margin: 0;
-		padding: 1rem var(--container-padding-horizontal);
-	}
-	.message li:nth-child(even) {
-		background: #222;
-	}
-
-	.results-input {
-		display: grid;
-		grid-direction: column;
-		grid-template-columns: 1fr auto;
-		gap: 0;
-		margin: 1rem var(--container-padding-horizontal);
-	}
-
-	.results-input input,
-	.results-input button {
-		padding: 1em 1.2em;
-		border-radius: 0.3em;
-		border: 0;
-	}
-	.results-input input {
-		border-bottom-right-radius: 0;
-		border-top-right-radius: 0;
-	}
-	.results-input button {
-		border-bottom-left-radius: 0;
-		border-top-left-radius: 0;
-	}
-
-	@media (prefers-color-scheme: dark) {
-		body {
-			background: #111;
-			color: rgb(174, 201, 201);
-		}
-		button,
-		input {
-			background: #333;
-			color: rgb(174, 201, 201);
-			border-color: #222;
-			outline: #222;
-		}
-	}
-</style>
