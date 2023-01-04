@@ -5,7 +5,8 @@
 
 	// Interfaces
 	interface Result {
-		prompt?: string
+		id: number
+		prompt?: string | number | symbol | undefined
 		image?: string
 	}
 
@@ -41,6 +42,7 @@
 
 				// Push new answer to results array
 				results.value.push({
+					id: results.value.length,
 					prompt: prompt.value,
 					image: data.image
 				})
@@ -65,7 +67,7 @@
 		<ul class="" ref="messagesElement">
 			<li
 				v-for="result in results"
-				:key="result"
+				:key="result.prompt"
 				class="px-12 py-3 even:bg-neutral-300 dark:even:bg-neutral-700 leading-0"
 			>
 				<picture>
@@ -76,11 +78,11 @@
 		</ul>
 	</main>
 
-	<footer class="px-12 py-4 w-screen">
+	<footer class="w-screen px-12 py-4">
 		<div ref="promptElement">
 			<input
 				type="text"
-				class="w-full border-2 border-gray-300 bg-white px-6 py-4 rounded-lg text-sm focus:outline-none focus:border-gray-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
+				class="w-full px-6 py-4 text-sm bg-white border-2 border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
 				placeholder="Describe your image. Use your phantasie!"
 				v-model="prompt"
 				:disabled="disabled"
