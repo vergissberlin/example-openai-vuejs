@@ -8,7 +8,7 @@
 	const disabled: Ref<boolean> = ref(false)
 	const chats: Ref<Array<string>> = ref([])
 	const url = 'https://vgbln-openai.herokuapp.com' || 'http://localhost:3000'
-	const configTemplate: Ref<string> = ref('marvin')
+	const configTemplate: Ref<string> = ref('neutral')
 	const messagesElement = ref<HTMLDivElement | null>(null)
 	const promptElement = ref<HTMLDivElement | null>(null)
 
@@ -16,6 +16,7 @@
 	type PromptTemplates = 'joda' | 'gpt3' | 'steve' | 'elon' | 'trump' | 'marvin'
 
 	const promptTemplates = {
+		neutral: '',
 		joda: 'Write like Joda: ',
 		gpt3: 'Write like GPT-3: ',
 		steve: 'Write like Steve Jobs. Very polite and push people forward: ',
