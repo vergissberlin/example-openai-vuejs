@@ -22,7 +22,7 @@
 		steve: 'Write like Steve Jobs. Very polite and push people forward: ',
 		elon: 'Write like Elon Musk: ',
 		marvin: 'Write like Marvin the Paranoid Android: '
-	} as Record<PromptTemplates, string>
+	}
 
 	onMounted(async () => {
 		await nextTick()
