@@ -7,7 +7,7 @@
 	const prompt: Ref<string> = ref('')
 	const disabled: Ref<boolean> = ref(false)
 	const chats: Ref<Array<string>> = ref([])
-	const url = 'https://vgbln-openai.herokuapp.com' || 'http://localhost:3000'
+	const url = 'https://example-openai-server-production.up.railway.app' || 'http://localhost:3000'
 	const configTemplate: Ref<string> = ref('neutral')
 	const messagesElement = ref<HTMLDivElement | null>(null)
 	const promptElement = ref<HTMLDivElement | null>(null)
