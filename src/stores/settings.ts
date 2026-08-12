@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { apiBaseUrl } from '../config'
 import { load, save, remove, PersistenceError, type StorageKind } from '../services/persistence'
+import type { ChatConnection, Protocol } from '../services/chat/client'
 import { useToastsStore } from './toasts'
 
 const STORAGE_KEY = 'settings'
@@ -40,6 +41,14 @@ export interface ChatParams {
 interface PersistedSettings {
 	connectionKind: ConnectionKind
 	customBaseUrl: string
+	/**
+	 * Wire protocol our own backend speaks.
+	 *
+	 * Still `legacy` — the deployed server only exposes `GET /text/?prompt=`.
+	 * Flip this to `openai` once the rebuilt backend is live; the client
+	 * already supports both.
+	 */
+	serverProtocol: Protocol
 	keyStorage: KeyStorage
 	model: string
 	params: ChatParams
@@ -51,6 +60,7 @@ interface PersistedSettings {
 const DEFAULTS: PersistedSettings = {
 	connectionKind: 'server',
 	customBaseUrl: '',
+	serverProtocol: 'legacy',
 	keyStorage: 'session',
 	model: 'gpt-4o-mini',
 	params: { temperature: 0.7, topP: 1, maxTokens: null },
@@ -76,6 +86,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
 	const connectionKind = ref<ConnectionKind>(initial.connectionKind)
 	const customBaseUrl = ref(initial.customBaseUrl)
+	const serverProtocol = ref<Protocol>(initial.serverProtocol)
 	const keyStorage = ref<KeyStorage>(initial.keyStorage)
 	const model = ref(initial.model)
 	const params = ref<ChatParams>(initial.params)
@@ -97,6 +108,17 @@ export const useSettingsStore = defineStore('settings', () => {
 	function resolveApiKey(): string | undefined {
 		if (connectionKind.value !== 'custom') return undefined
 		return apiKey.value.trim() || undefined
+	}
+
+	/** Everything the chat client needs, resolved from the current settings. */
+	function resolveConnection(): ChatConnection {
+		return {
+			baseUrl: resolveBaseUrl(),
+			apiKey: resolveApiKey(),
+			// A user-supplied endpoint is OpenAI-compatible by definition;
+			// only our own backend still speaks the legacy protocol.
+			protocol: connectionKind.value === 'custom' ? 'openai' : serverProtocol.value
+		}
 	}
 
 	function setApiKey(value: string) {
@@ -125,6 +147,7 @@ export const useSettingsStore = defineStore('settings', () => {
 		[
 			connectionKind,
 			customBaseUrl,
+			serverProtocol,
 			keyStorage,
 			model,
 			params,
@@ -136,6 +159,7 @@ export const useSettingsStore = defineStore('settings', () => {
 			const payload: PersistedSettings = {
 				connectionKind: connectionKind.value,
 				customBaseUrl: customBaseUrl.value,
+				serverProtocol: serverProtocol.value,
 				keyStorage: keyStorage.value,
 				model: model.value,
 				params: params.value,
@@ -155,6 +179,7 @@ export const useSettingsStore = defineStore('settings', () => {
 	return {
 		connectionKind,
 		customBaseUrl,
+		serverProtocol,
 		keyStorage,
 		apiKey,
 		model,
@@ -164,6 +189,7 @@ export const useSettingsStore = defineStore('settings', () => {
 		sendOnEnter,
 		resolveBaseUrl,
 		resolveApiKey,
+		resolveConnection,
 		setApiKey
 	}
 })
