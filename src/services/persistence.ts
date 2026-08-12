@@ -57,7 +57,12 @@ function namespaced(key: string): string {
  */
 export type Migration<T> = (data: unknown, version: number) => T | null
 
-export function load<T>(key: string, fallback: T, migrate?: Migration<T>, kind: StorageKind = 'local'): T {
+export function load<T>(
+	key: string,
+	fallback: T,
+	migrate?: Migration<T>,
+	kind: StorageKind = 'local'
+): T {
 	const storage = getStorage(kind)
 	if (!storage) return fallback
 
@@ -97,8 +102,7 @@ export function save<T>(key: string, data: T, kind: StorageKind = 'local'): void
 		// Chrome/Safari/Firefox all report a full quota differently; the name
 		// is the only reliable signal across them.
 		const name = error instanceof Error ? error.name : ''
-		const isQuota =
-			name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED'
+		const isQuota = name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED'
 
 		throw new PersistenceError(
 			isQuota

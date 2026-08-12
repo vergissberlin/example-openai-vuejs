@@ -6,7 +6,34 @@ This is a simple example of how to use [OpenAI](https://openai.com/) with [Vue.j
 
 The client talks to a small backend
 ([example-openai-server](https://github.com/vergissberlin/example-openai-server))
-that holds the OpenAI API key. No key is ever stored in this application.
+that holds the OpenAI API key, so the default setup needs no key in the
+browser. You can also point it at any other OpenAI-compatible endpoint —
+Ollama, LM Studio, OpenAI itself — in which case you supply the key.
+
+## Features
+
+- Multiple conversations in a sidebar: create, rename, pin, delete, search,
+  and one url per chat
+- Token-by-token streaming with a stop button, plus regenerate, edit-and-resend,
+  copy and delete on individual messages
+- Markdown answers with syntax highlighting and copy-able code blocks, sanitised
+  with DOMPurify
+- Prompt presets applied with `/command`, including the personas the demo has
+  always shipped
+- Settings for the endpoint, model, temperature, top_p, max tokens and system
+  prompt
+- Light/dark/system theme, keyboard shortcuts, and a mobile drawer layout
+- Chats persist in the browser and can be exported and imported as JSON
+
+See [docs/architecture.md](docs/architecture.md) for how it fits together.
+
+### A note on API keys
+
+Using your own endpoint means the key is stored in the browser. It is kept
+under its own storage key, never included in an export, and never sent to the
+bundled backend — but any script running on the page could read it. It defaults
+to being kept only for the tab session. On a shared or publicly deployed
+instance, prefer the bundled backend, which keeps the key server-side.
 
 ## Requirements
 
@@ -70,11 +97,14 @@ pnpm format
 
 ## ToDo
 
-- [ ] Make model select- and configurable
+- [x] Make model select- and configurable
 - [ ] Add more models for code and image generation
 - [x] Loading animation
-- [ ] Change favicon and title
-- [ ] Add more tests
-- [ ] Add more documentation
+- [x] Change favicon and title
+- [x] Add more tests
+- [x] Add more documentation
 - [ ] Use components from [Vitesse](https://github.com/antfu/vitesse)
-- [ ] Add more types
+- [x] Add more types
+- [ ] LaTeX rendering in answers
+- [ ] Rebuild the backend as an OpenAI-compatible proxy, then switch the
+      connection protocol to `/v1` by default

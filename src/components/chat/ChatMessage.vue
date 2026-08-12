@@ -73,9 +73,7 @@ async function onClick(event: MouseEvent) {
 	<article
 		class="px-6 py-4 group md:px-12"
 		:class="
-			message.role === 'assistant'
-				? 'bg-neutral-300 dark:bg-neutral-700'
-				: 'bg-transparent'
+			message.role === 'assistant' ? 'bg-neutral-300 dark:bg-neutral-700' : 'bg-transparent'
 		"
 	>
 		<p class="mb-1 text-xs font-medium uppercase text-neutral-600 dark:text-neutral-400">
@@ -124,7 +122,13 @@ async function onClick(event: MouseEvent) {
 			class="flex gap-3 mt-2 text-xs transition-opacity opacity-0 text-neutral-600 group-hover:opacity-100 focus-within:opacity-100 dark:text-neutral-400"
 		>
 			<button type="button" class="hover:underline" @click="copyMessage">
-				{{ copyState === 'done' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy' }}
+				{{
+					copyState === 'done'
+						? 'Copied'
+						: copyState === 'failed'
+							? 'Copy failed'
+							: 'Copy'
+				}}
 			</button>
 			<button
 				v-if="message.role === 'user'"

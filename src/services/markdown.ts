@@ -123,11 +123,49 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
 
 const PURIFY_CONFIG = {
 	ALLOWED_TAGS: [
-		'a', 'blockquote', 'br', 'code', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-		'hr', 'img', 'li', 'ol', 'p', 'pre', 'span', 'strong', 'del', 'button',
-		'table', 'thead', 'tbody', 'tr', 'th', 'td', 'ul'
+		'a',
+		'blockquote',
+		'br',
+		'code',
+		'div',
+		'em',
+		'h1',
+		'h2',
+		'h3',
+		'h4',
+		'h5',
+		'h6',
+		'hr',
+		'img',
+		'li',
+		'ol',
+		'p',
+		'pre',
+		'span',
+		'strong',
+		'del',
+		'button',
+		'table',
+		'thead',
+		'tbody',
+		'tr',
+		'th',
+		'td',
+		'ul'
 	],
-	ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'src', 'alt', 'class', 'data-copy', 'data-language', 'type', 'aria-label'],
+	ALLOWED_ATTR: [
+		'href',
+		'title',
+		'target',
+		'rel',
+		'src',
+		'alt',
+		'class',
+		'data-copy',
+		'data-language',
+		'type',
+		'aria-label'
+	],
 	// Blocks `javascript:` and friends while still allowing images pasted as
 	// data urls.
 	ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|data:image\/(?:png|jpeg|gif|webp);|#|\/)/i

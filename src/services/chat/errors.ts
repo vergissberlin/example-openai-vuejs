@@ -2,13 +2,7 @@
  * Failure modes a chat request can hit, kept as a discriminant so the UI can
  * say something useful instead of surfacing a raw exception.
  */
-export type ChatErrorKind =
-	| 'network'
-	| 'auth'
-	| 'rate_limit'
-	| 'server'
-	| 'bad_request'
-	| 'aborted'
+export type ChatErrorKind = 'network' | 'auth' | 'rate_limit' | 'server' | 'bad_request' | 'aborted'
 
 export class ChatError extends Error {
 	constructor(

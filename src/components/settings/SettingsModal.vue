@@ -138,9 +138,7 @@ function clearAll() {
 					:key="entry"
 					type="button"
 					class="px-4 py-3 text-sm text-left whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
-					:class="
-						tab === entry ? 'font-medium text-green-700 dark:text-green-500' : ''
-					"
+					:class="tab === entry ? 'font-medium text-green-700 dark:text-green-500' : ''"
 					@click="tab = entry"
 				>
 					{{ entry }}
@@ -169,16 +167,13 @@ function clearAll() {
 								class="w-full px-3 py-2 bg-white border rounded-lg border-neutral-300 dark:bg-neutral-800 dark:border-neutral-700"
 							>
 								<option value="legacy">Legacy /text/ (one-shot)</option>
-								<option value="openai">
-									OpenAI-compatible /v1 (streaming)
-								</option>
+								<option value="openai">OpenAI-compatible /v1 (streaming)</option>
 							</select>
 						</label>
 						<p class="text-neutral-600 dark:text-neutral-400">
-							The deployed backend still answers on the legacy route, which
-							returns the whole reply at once and has no real multi-turn
-							history. Switch to the streaming protocol once the rebuilt
-							server is live.
+							The deployed backend still answers on the legacy route, which returns
+							the whole reply at once and has no real multi-turn history. Switch to
+							the streaming protocol once the rebuilt server is live.
 						</p>
 					</template>
 
@@ -222,18 +217,13 @@ function clearAll() {
 							class="p-3 rounded-lg bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
 						>
 							<strong>A key in the browser is only as safe as this page.</strong>
-							It is never sent to the bundled backend and never included in an
-							export, but any script running here could read it. Use a key
-							scoped to what you need, and prefer the bundled backend on a
-							shared or public deployment.
+							It is never sent to the bundled backend and never included in an export,
+							but any script running here could read it. Use a key scoped to what you
+							need, and prefer the bundled backend on a shared or public deployment.
 						</p>
 
-						<p
-							v-if="keyStorage === 'local'"
-							class="text-amber-700 dark:text-amber-400"
-						>
-							Stored indefinitely: the key stays on this device until you
-							clear it.
+						<p v-if="keyStorage === 'local'" class="text-amber-700 dark:text-amber-400">
+							Stored indefinitely: the key stays on this device until you clear it.
 						</p>
 					</template>
 				</template>
@@ -407,8 +397,8 @@ function clearAll() {
 				<!-- Data -->
 				<template v-else>
 					<p class="text-neutral-600 dark:text-neutral-400">
-						Chats live in this browser only. Exports contain conversations, never
-						the API key.
+						Chats live in this browser only. Exports contain conversations, never the
+						API key.
 					</p>
 
 					<div class="flex flex-wrap gap-2">

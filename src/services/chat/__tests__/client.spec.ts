@@ -135,7 +135,9 @@ describe('streamChat (openai protocol)', () => {
 			.mockResolvedValue(sseResponse('data: [DONE]\n\n'))
 
 		await collect(streamChat(OPENAI, request()))
-		expect((fetchMock.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBeUndefined()
+		expect(
+			(fetchMock.mock.calls[0][1]?.headers as Record<string, string>).Authorization
+		).toBeUndefined()
 
 		await collect(streamChat({ ...OPENAI, apiKey: 'sk-test' }, request()))
 		expect((fetchMock.mock.calls[1][1]?.headers as Record<string, string>).Authorization).toBe(

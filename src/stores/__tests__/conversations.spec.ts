@@ -113,7 +113,12 @@ describe('conversations store', () => {
 		store.appendMessage(b.id, 'user', 'Unrelated')
 		store.appendMessage(b.id, 'assistant', 'Mentions KUBERNETES in the body')
 
-		expect(store.search('kubernetes').map((c) => c.id).sort()).toEqual([a.id, b.id].sort())
+		expect(
+			store
+				.search('kubernetes')
+				.map((c) => c.id)
+				.sort()
+		).toEqual([a.id, b.id].sort())
 		expect(store.search('nothing-matches')).toHaveLength(0)
 		expect(store.search('  ')).toHaveLength(2)
 	})

@@ -126,10 +126,9 @@ async function* streamLegacy(
 
 	let response: Response
 	try {
-		response = await fetch(
-			`${connection.baseUrl}/text/?prompt=${encodeURIComponent(prompt)}`,
-			{ signal: request.signal }
-		)
+		response = await fetch(`${connection.baseUrl}/text/?prompt=${encodeURIComponent(prompt)}`, {
+			signal: request.signal
+		})
 	} catch (error) {
 		throw fromUnknown(error)
 	}
