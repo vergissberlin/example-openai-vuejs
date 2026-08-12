@@ -1,64 +1,60 @@
 <script setup lang="ts">
-	import LoadingIndicator from '../components/LoadingIndicator.vue'
-	import { ref, nextTick, onMounted } from 'vue'
-	import type { Ref } from 'vue'
+import LoadingIndicator from '../components/LoadingIndicator.vue'
+import { ref } from 'vue'
+import type { Ref } from 'vue'
+import { apiBaseUrl } from '../config'
 
-	// Interfaces
-	interface Result {
-		id: number
-		prompt?: string | number | symbol | undefined
-		image?: string
-	}
+// Interfaces
+interface Result {
+	id: number
+	prompt?: string | number | symbol | undefined
+	image?: string
+}
 
-	// Refs
-	const prompt: Ref<string> = ref('')
-	const disabled: Ref<boolean> = ref(false)
-	const results: Ref<Array<Result>> = ref([])
-	const url = 'https://vgbln-openai.herokuapp.com'
-	const messagesElement = ref<HTMLDivElement | null>(null)
-	const promptElement = ref<HTMLDivElement | null>(null)
+// Refs
+const prompt: Ref<string> = ref('')
+const disabled: Ref<boolean> = ref(false)
+const results: Ref<Array<Result>> = ref([])
+// Was pointing at a heroku free-tier host that no longer exists.
+const url = apiBaseUrl
+const messagesElement = ref<HTMLDivElement | null>(null)
+const promptElement = ref<HTMLDivElement | null>(null)
 
-	onMounted(async () => {
-		await nextTick()
-		const div = messagesElement.value!.lastElementChild as HTMLDivElement
-		// div.scrollIntoView().catch(() => {})
-	})
+// Methods
+const askAi = async (): Promise<void> => {
+	// Dieses wunderschöne und intelligente Mädchen mit den grünen Haaren und der Lederjacke vom Gymnasium!
 
-	// Methods
-	const askAi = async (): Promise<void> => {
-		// Dieses wunderschöne und intelligente Mädchen mit den grünen Haaren und der Lederjacke vom Gymnasium!
+	// Disable input field
+	disabled.value = true
 
-		// Disable input field
-		disabled.value = true
+	// URL encode prompt
+	const promptEncoded = encodeURIComponent(prompt.value)
+	// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
+	// Set results to response
+	await fetch(`${url}/image/?prompt=${promptEncoded}`)
+		.then((response) => response.json())
+		.then((data) => {
+			console.log('Success:', data)
 
-		// URL encode prompt
-		const promptEncoded = encodeURIComponent(prompt.value)
-		// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
-		// Set results to response
-		await fetch(`${url}/image/?prompt=${promptEncoded}`)
-			.then((response) => response.json())
-			.then((data) => {
-				console.log('Success:', data)
-
-				// Push new answer to results array
-				results.value.push({
-					id: results.value.length,
-					prompt: prompt.value,
-					image: data.image
-				})
-
-				// Scroll to bottom of the page
-				const div = promptElement.value as HTMLDivElement
-				div.scrollIntoView()
-
-				// Reset prompt
-				disabled.value = false
-				prompt.value = ''
+			// Push new answer to results array
+			results.value.push({
+				id: results.value.length,
+				prompt: prompt.value,
+				image: data.image
 			})
-			.catch((error) => {
-				console.error('Error:', error)
-			})
-	}
+
+			// Scroll to bottom of the page
+			const div = promptElement.value as HTMLDivElement
+			div.scrollIntoView()
+
+			// Reset prompt
+			disabled.value = false
+			prompt.value = ''
+		})
+		.catch((error) => {
+			console.error('Error:', error)
+		})
+}
 </script>
 
 <template>
@@ -70,10 +66,10 @@
 				:key="result.prompt"
 				class="px-12 py-3 even:bg-neutral-300 dark:even:bg-neutral-700 leading-0"
 			>
-				<picture>
-					<img :src="result.image" />
+				<figure>
+					<img :src="result.image" :alt="String(result.prompt ?? '')" />
 					<figcaption>{{ result.prompt }}</figcaption>
-				</picture>
+				</figure>
 			</li>
 		</ul>
 	</main>

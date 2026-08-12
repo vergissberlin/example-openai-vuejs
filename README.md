@@ -4,53 +4,68 @@ This is a simple example of how to use [OpenAI](https://openai.com/) with [Vue.j
 
 [![Build and deploy application](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/build-and-deploy.yml/badge.svg)](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/build-and-deploy.yml)
 
+The client talks to a small backend
+([example-openai-server](https://github.com/vergissberlin/example-openai-server))
+that holds the OpenAI API key. No key is ever stored in this application.
+
+## Requirements
+
+- Node.js `^20.19.0 || >=22.12.0`
+- [pnpm](https://pnpm.io/) — `corepack enable` picks up the pinned version automatically
+
 ## Project Setup
 
 ```sh
-yarn
+pnpm install
 ```
+
+Copy `.env.example` to `.env.local` to point the client at a different
+backend. Every `VITE_` variable ends up in the browser bundle, so none of
+them may hold secrets.
 
 ### Compile and Hot-Reload for Development
 
 ```sh
-yarn dev
+pnpm dev
 ```
 
 ### Type-Check, Compile and Minify for Production
 
 ```sh
-yarn build
+pnpm build
 ```
 
 ### Run Unit Tests with [Vitest](https://vitest.dev/)
 
 ```sh
-yarn test:unit
+pnpm test:unit
 ```
 
 ### Run End-to-End Tests with [Playwright](https://playwright.dev)
 
 ```sh
 # Install browsers for the first run
-npx playwright install
+pnpm exec playwright install
 
 # When testing on CI, must build the project first
-yarn build
+pnpm build
 
 # Runs the end-to-end tests
-yarn test:e2e
+pnpm test:e2e
 # Runs the tests only on Chromium
-yarn test:e2e --project=chromium
+pnpm test:e2e --project=chromium
 # Runs the tests of a specific file
-yarn test:e2e tests/example.spec.ts
+pnpm test:e2e e2e/vue.spec.ts
 # Runs the tests in debug mode
-yarn test:e2e --debug
+pnpm test:e2e --debug
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Lint with [ESLint](https://eslint.org/) and format with [Prettier](https://prettier.io/)
 
 ```sh
-yarn lint
+pnpm lint        # fixes what it can
+pnpm lint:check  # reports only, this is what CI runs
+pnpm format
 ```
 
 ## ToDo

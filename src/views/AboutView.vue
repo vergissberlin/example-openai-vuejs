@@ -3,8 +3,10 @@
 		<h2 class="mb-3 text-3xl">Example project for an AI chat</h2>
 		<p>
 			This is an example project for an AI chat. It uses the
-			<a href="https://openai.com" class="text-green-600 underline hover:text-green-500">OpenAI</a> API to generate
-			answers.
+			<a href="https://openai.com" class="text-green-600 underline hover:text-green-500"
+				>OpenAI</a
+			>
+			API to generate answers.
 		</p>
 
 		<h2 class="mt-6 mb-3 text-3xl">Source code</h2>

@@ -1,71 +1,68 @@
 <script setup lang="ts">
-	import LoadingIndicator from '../components/LoadingIndicator.vue'
-	import { ref, nextTick, onMounted } from 'vue'
-	import type { Ref } from 'vue'
+import LoadingIndicator from '../components/LoadingIndicator.vue'
+import { ref } from 'vue'
+import type { Ref } from 'vue'
+import { apiBaseUrl } from '../config'
 
-	// Refs
-	const prompt: Ref<string> = ref('')
-	const disabled: Ref<boolean> = ref(false)
-	const chats: Ref<Array<string>> = ref([])
-	const url = 'https://example-openai-server-production.up.railway.app'
-	const configTemplate: Ref<string> = ref('neutral')
-	const messagesElement = ref<HTMLDivElement | null>(null)
-	const promptElement = ref<HTMLDivElement | null>(null)
+const promptTemplates = {
+	neutral: '',
+	joda: 'Write like Joda: ',
+	gpt3: 'Write like GPT-3: ',
+	steve: 'Write like Steve Jobs. Very polite and push people forward: ',
+	elon: 'Write like Elon Musk: ',
+	marvin: 'Write like Marvin the Paranoid Android: '
+}
 
-	// Type for prompt templates
-	type PromptTemplates = 'joda' | 'gpt3' | 'steve' | 'elon' | 'trump' | 'marvin'
+// Derived from the object rather than hand-written, so the two cannot
+// drift apart again — the previous literal union listed a 'trump' key
+// that did not exist and omitted 'neutral', which is why the lookup
+// below needed a @ts-ignore.
+type PromptTemplate = keyof typeof promptTemplates
 
-	const promptTemplates = {
-		neutral: '',
-		joda: 'Write like Joda: ',
-		gpt3: 'Write like GPT-3: ',
-		steve: 'Write like Steve Jobs. Very polite and push people forward: ',
-		elon: 'Write like Elon Musk: ',
-		marvin: 'Write like Marvin the Paranoid Android: '
-	}
+// Refs
+const prompt: Ref<string> = ref('')
+const disabled: Ref<boolean> = ref(false)
+const chats: Ref<Array<string>> = ref([])
+const url = apiBaseUrl
+const configTemplate: Ref<PromptTemplate> = ref('neutral')
+const messagesElement = ref<HTMLDivElement | null>(null)
+const promptElement = ref<HTMLDivElement | null>(null)
 
-	onMounted(async () => {
-		await nextTick()
-		const div = messagesElement.value!.lastElementChild as HTMLDivElement
-		//div.scrollIntoView().catch(() => {})
-	})
+// Methods
+const askAi = async (): Promise<void> => {
+	// Disable input field
+	disabled.value = true
 
-	// Methods
-	const askAi = async (): Promise<void> => {
-		// Disable input field
-		disabled.value = true
+	// URL encode prompt
+	const promptEncoded = encodeURIComponent(promptTemplates[configTemplate.value] + prompt.value)
+	chats.value.push(prompt.value)
+	// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
+	// Set chats to response
+	await fetch(`${url}/text/?prompt=${promptEncoded}`)
+		.then((response) => response.json())
+		.then((data) => {
+			console.log('Success:', data)
+			// remove the 2 new lines at the beginning of the answer
+			data.text = data.text.replace(/^\n\n/, '')
 
-		// URL encode prompt
-		// @ts-ignore
-		const promptEncoded = encodeURIComponent(promptTemplates[configTemplate.value] + prompt.value)
-		chats.value.push(prompt.value)
-		// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
-		// Set chats to response
-		await fetch(`${url}/text/?prompt=${promptEncoded}`)
-			.then((response) => response.json())
-			.then((data) => {
-				console.log('Success:', data)
-				// remove the 2 new lines at the beginning of the answer
-				data.text = data.text.replace(/^\n\n/, '')
+			// replace new line with br
+			data.text = data.text.replace(/\n/g, '<br />')
 
-				// replace new line with br
-				data.text = data.text.replace(/\n/g, '<br />')
+			// Push new answer to chats array
+			chats.value.push(data.text)
 
-				// Push new answer to chats array
-				chats.value.push(data.text)
+			// Scroll to bottom of the page
+			const div = promptElement.value as HTMLDivElement
+			div.scrollIntoView()
 
-				// Scroll to bottom of the page
-				const div = promptElement.value as HTMLDivElement
-				div.scrollIntoView()
-
-				// Reset prompt
-				disabled.value = false
-				prompt.value = ''
-			})
-			.catch((error) => {
-				console.error('Error:', error)
-			})
-	}
+			// Reset prompt
+			disabled.value = false
+			prompt.value = ''
+		})
+		.catch((error) => {
+			console.error('Error:', error)
+		})
+}
 </script>
 
 <template>
