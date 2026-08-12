@@ -3,7 +3,26 @@ import { computed, onMounted, ref } from 'vue'
 import type { Message } from '../../types/chat'
 import { loadMarkdown, renderIfLoaded } from '../../services/markdownLoader'
 
-const props = defineProps<{ message: Message }>()
+const props = defineProps<{ message: Message; canRegenerate?: boolean }>()
+const emit = defineEmits<{
+	regenerate: [id: string]
+	edit: [id: string]
+	remove: [id: string]
+}>()
+
+const copyState = ref<'idle' | 'done' | 'failed'>('idle')
+
+async function copyMessage() {
+	try {
+		await navigator.clipboard.writeText(props.message.content)
+		copyState.value = 'done'
+	} catch {
+		copyState.value = 'failed'
+	}
+	setTimeout(() => {
+		copyState.value = 'idle'
+	}, 1500)
+}
 
 /** Flips once the renderer chunk has arrived, re-running the computed below. */
 const rendererReady = ref(false)
@@ -52,7 +71,7 @@ async function onClick(event: MouseEvent) {
 
 <template>
 	<article
-		class="px-6 py-4 md:px-12"
+		class="px-6 py-4 group md:px-12"
 		:class="
 			message.role === 'assistant'
 				? 'bg-neutral-300 dark:bg-neutral-700'
@@ -91,5 +110,45 @@ async function onClick(event: MouseEvent) {
 		>
 			…
 		</span>
+
+		<p v-if="message.status === 'aborted'" class="mt-1 text-xs text-neutral-500">
+			Stopped before it finished.
+		</p>
+
+		<!--
+			Hidden until hover or keyboard focus, but always in the DOM so the
+			buttons stay reachable without a pointer.
+		-->
+		<div
+			v-if="message.status !== 'streaming'"
+			class="flex gap-3 mt-2 text-xs transition-opacity opacity-0 text-neutral-600 group-hover:opacity-100 focus-within:opacity-100 dark:text-neutral-400"
+		>
+			<button type="button" class="hover:underline" @click="copyMessage">
+				{{ copyState === 'done' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy' }}
+			</button>
+			<button
+				v-if="message.role === 'user'"
+				type="button"
+				class="hover:underline"
+				@click="emit('edit', message.id)"
+			>
+				Edit
+			</button>
+			<button
+				v-if="message.role === 'assistant' && canRegenerate"
+				type="button"
+				class="hover:underline"
+				@click="emit('regenerate', message.id)"
+			>
+				Regenerate
+			</button>
+			<button
+				type="button"
+				class="hover:underline hover:text-red-700 dark:hover:text-red-400"
+				@click="emit('remove', message.id)"
+			>
+				Delete
+			</button>
+		</div>
 	</article>
 </template>

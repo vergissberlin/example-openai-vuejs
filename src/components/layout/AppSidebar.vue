@@ -5,7 +5,7 @@ import { useConversationsStore } from '../../stores/conversations'
 import ConversationItem from './ConversationItem.vue'
 
 defineProps<{ open: boolean }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; openSettings: [] }>()
 
 const conversations = useConversationsStore()
 const router = useRouter()
@@ -111,6 +111,13 @@ function remove(id: string) {
 			>
 				About
 			</RouterLink>
+			<button
+				type="button"
+				class="px-3 py-2 text-left rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-800"
+				@click="emit('openSettings')"
+			>
+				Settings
+			</button>
 		</div>
 	</aside>
 </template>

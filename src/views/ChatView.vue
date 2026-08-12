@@ -95,8 +95,7 @@ function stop() {
 	controller?.abort()
 }
 
-async function send(): Promise<void> {
-	const text = prompt.value.trim()
+async function send(text: string = prompt.value.trim()): Promise<void> {
 	if (!text || pending.value || !conversation.value) return
 
 	const conversationId = conversation.value.id
@@ -160,6 +159,43 @@ async function send(): Promise<void> {
 	}
 }
 
+/**
+ * Re-runs the user turn that produced `messageId`.
+ *
+ * Everything from that user message onwards is dropped first: the answer is
+ * being replaced, and the turns that followed it were answers to a branch of
+ * the conversation that no longer exists.
+ */
+function regenerate(messageId: string) {
+	if (pending.value || !conversation.value) return
+
+	const all = conversation.value.messages
+	const index = all.findIndex((message) => message.id === messageId)
+	if (index < 1) return
+
+	const question = [...all.slice(0, index)].reverse().find((message) => message.role === 'user')
+	if (!question) return
+
+	conversations.truncateFrom(conversation.value.id, question.id)
+	void send(question.content)
+}
+
+/** Puts a user message back in the composer and drops everything after it. */
+function edit(messageId: string) {
+	if (pending.value || !conversation.value) return
+
+	const message = conversation.value.messages.find((entry) => entry.id === messageId)
+	if (!message) return
+
+	prompt.value = message.content
+	conversations.truncateFrom(conversation.value.id, messageId)
+}
+
+function remove(messageId: string) {
+	if (!conversation.value) return
+	conversations.removeMessage(conversation.value.id, messageId)
+}
+
 function onKeydown(event: KeyboardEvent) {
 	if (event.key !== 'Enter') return
 	// Shift+Enter inserts a newline; plain Enter sends, unless turned off.
@@ -180,7 +216,15 @@ function onKeydown(event: KeyboardEvent) {
 				Ask something to start this chat. Type <code>/</code> to use a persona.
 			</p>
 
-			<ChatMessage v-for="message in messages" :key="message.id" :message="message" />
+			<ChatMessage
+				v-for="(message, index) in messages"
+				:key="message.id"
+				:message="message"
+				:can-regenerate="!pending && index === messages.length - 1"
+				@regenerate="regenerate"
+				@edit="edit"
+				@remove="remove"
+			/>
 
 			<LoadingIndicator v-if="pending && !messages.at(-1)?.content" />
 			<div ref="bottom"></div>
@@ -210,7 +254,7 @@ function onKeydown(event: KeyboardEvent) {
 					type="button"
 					class="px-5 py-4 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-600 disabled:opacity-50"
 					:disabled="!prompt.trim()"
-					@click="send"
+					@click="send()"
 				>
 					Send
 				</button>
