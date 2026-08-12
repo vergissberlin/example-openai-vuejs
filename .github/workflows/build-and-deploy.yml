@@ -21,33 +21,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [16.x]
+        node-version: [22.x]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build application. Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'yarn'
       - run: yarn
       - run: yarn build
-      - run: |
-          pwd
-          echo "${{ steps.deployment.outputs.page_url }}"
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: './dist/'
+
+  # Only deploy after a merge to main - the github-pages environment's
+  # deployment-branch protection rejects any other ref outright.
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v4
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
