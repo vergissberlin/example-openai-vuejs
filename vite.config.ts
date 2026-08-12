@@ -2,15 +2,14 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vueJsx from '@vitejs/plugin-vue-jsx'
 
-// https://vitejs.dev/config/
+// https://vite.dev/config/
 export default defineConfig({
-    plugins: [vue(), vueJsx()],
-    base: process.env.NODE_ENV === 'production' ? '/example-openai-vuejs/' : '',
-    resolve: {
-        alias: {
-            '@': fileURLToPath(new URL('./src', import.meta.url))
-        }
-    }
+	plugins: [vue()],
+	base: process.env.NODE_ENV === 'production' ? '/example-openai-vuejs/' : '',
+	resolve: {
+		alias: {
+			'@': fileURLToPath(new URL('./src', import.meta.url))
+		}
+	}
 })

@@ -14,7 +14,7 @@
 	const prompt: Ref<string> = ref('')
 	const disabled: Ref<boolean> = ref(false)
 	const results: Ref<Array<Result>> = ref([])
-	const url = 'https://vgbln-openai.herokuapp.com' || 'http://localhost:3000'
+	const url = 'https://vgbln-openai.herokuapp.com'
 	const messagesElement = ref<HTMLDivElement | null>(null)
 	const promptElement = ref<HTMLDivElement | null>(null)
 
