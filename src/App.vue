@@ -1,33 +1,37 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { ref } from 'vue'
+import { RouterView } from 'vue-router'
+import AppSidebar from './components/layout/AppSidebar.vue'
+import ToastHost from './components/ui/ToastHost.vue'
+import { useTheme } from './composables/useTheme'
+
+useTheme()
+
+const sidebarOpen = ref(false)
 </script>
 
 <template>
-	<header class="px-12 py-12 bg-neutral-100 dark:bg-neutral-900">
-		<h1 class="pb-3 text-3xl">Vue 3 + OpenAI</h1>
-		<nav class="flex gap-4 flex-start">
-			<RouterLink
-				to="/"
-				active-class="text-green-700 dark:text-green-500 "
-				class="hover:underline"
-				>Chat</RouterLink
-			>
-			<RouterLink
-				to="/image"
-				active-class="text-green-700 dark:text-green-500"
-				class="hover:underline"
-			>
-				Image
-			</RouterLink>
-			<RouterLink
-				to="/about"
-				active-class="text-green-700 dark:text-green-500"
-				class="hover:underline"
-			>
-				About
-			</RouterLink>
-		</nav>
-	</header>
+	<div class="flex w-full h-full">
+		<AppSidebar :open="sidebarOpen" @close="sidebarOpen = false" />
 
-	<RouterView />
+		<div class="flex flex-col flex-1 min-w-0">
+			<header
+				class="flex items-center gap-3 px-4 py-3 border-b border-neutral-300 md:hidden dark:border-neutral-700"
+			>
+				<button
+					type="button"
+					class="px-2 py-1 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-800"
+					aria-label="Open sidebar"
+					@click="sidebarOpen = true"
+				>
+					☰
+				</button>
+				<span class="font-medium">Vue 3 + OpenAI</span>
+			</header>
+
+			<RouterView />
+		</div>
+
+		<ToastHost />
+	</div>
 </template>

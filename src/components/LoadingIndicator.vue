@@ -16,20 +16,24 @@
 </template>
 
 <style scoped>
+/*
+ * Was absolutely positioned against the viewport centre, which put it on top
+ * of the messages. It now sits in the flow, below the last message.
+ */
 .lds-default {
 	zoom: 0.5;
-	display: inline-block;
-	position: absolute;
-	left: calc(50% - 42px);
-	top: calc(50% - 42px);
-	width: 42px;
-	height: 42px;
+	display: block;
+	position: relative;
+	margin: 0 auto;
+	width: 84px;
+	height: 84px;
 }
 .lds-default div {
 	position: absolute;
 	width: 6px;
 	height: 6px;
-	background: #fff;
+	/* Was hardcoded white, i.e. invisible on the light theme. */
+	background: currentColor;
 	border-radius: 50%;
 	animation: lds-default 1.2s linear infinite;
 }

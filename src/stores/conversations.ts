@@ -166,26 +166,45 @@ export const useConversationsStore = defineStore('conversations', () => {
 	let persistTimer: ReturnType<typeof setTimeout> | undefined
 	let quotaReported = false
 
+	function writeNow() {
+		clearTimeout(persistTimer)
+		persistTimer = undefined
+		try {
+			save(STORAGE_KEY, conversations.value)
+			quotaReported = false
+		} catch (error) {
+			// Only surface this once per failing streak — a full quota would
+			// otherwise raise a toast on every keystroke.
+			if (error instanceof PersistenceError && !quotaReported) {
+				quotaReported = true
+				useToastsStore().error(error.message)
+			}
+		}
+	}
+
+	/** Writes immediately if a debounced write is still outstanding. */
+	function flush() {
+		if (persistTimer !== undefined) writeNow()
+	}
+
 	watch(
 		conversations,
-		(value) => {
+		() => {
 			clearTimeout(persistTimer)
-			persistTimer = setTimeout(() => {
-				try {
-					save(STORAGE_KEY, value)
-					quotaReported = false
-				} catch (error) {
-					// Only surface this once per failing streak — a full quota
-					// would otherwise raise a toast on every keystroke.
-					if (error instanceof PersistenceError && !quotaReported) {
-						quotaReported = true
-						useToastsStore().error(error.message)
-					}
-				}
-			}, PERSIST_DEBOUNCE_MS)
+			persistTimer = setTimeout(writeNow, PERSIST_DEBOUNCE_MS)
 		},
 		{ deep: true }
 	)
+
+	// Without this, closing or reloading the tab within the debounce window
+	// loses the most recent messages. `pagehide` fires in cases `unload` does
+	// not, notably iOS Safari and the back/forward cache.
+	if (typeof window !== 'undefined') {
+		window.addEventListener('pagehide', flush)
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'hidden') flush()
+		})
+	}
 
 	return {
 		conversations,
@@ -204,6 +223,7 @@ export const useConversationsStore = defineStore('conversations', () => {
 		removeMessage,
 		truncateFrom,
 		search,
-		importConversations
+		importConversations,
+		flush
 	}
 })

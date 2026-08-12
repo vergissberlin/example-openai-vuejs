@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Redirecting…</title>
+		<script>
+			/*
+			 * GitHub Pages has no SPA fallback: a deep link such as
+			 * /example-openai-vuejs/c/<id> is a real 404 on reload, because no
+			 * such file exists. Pages serves this document for those, so stash
+			 * the requested url and hand control back to the app entry, which
+			 * restores it into the history before the router boots.
+			 */
+			var base = '/example-openai-vuejs/'
+			sessionStorage.setItem('spa-redirect', location.href)
+			location.replace(base)
+		</script>
+	</head>
+	<body>
+		<p>Redirecting…</p>
+	</body>
+</html>

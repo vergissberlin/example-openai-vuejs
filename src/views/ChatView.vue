@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import type { Ref } from 'vue'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
 import { useConversationsStore } from '../stores/conversations'
 import { useSettingsStore } from '../stores/settings'
 import { usePromptsStore } from '../stores/prompts'
 import { useToastsStore } from '../stores/toasts'
-import { ref } from 'vue'
-import type { Ref } from 'vue'
 
+const props = defineProps<{ id: string }>()
+
+const router = useRouter()
 const conversations = useConversationsStore()
 const settings = useSettingsStore()
 const prompts = usePromptsStore()
@@ -15,14 +18,31 @@ const toasts = useToastsStore()
 
 const prompt: Ref<string> = ref('')
 const pending = ref(false)
-const promptElement = ref<HTMLDivElement | null>(null)
+const bottom = ref<HTMLDivElement | null>(null)
+
+const conversation = computed(() => conversations.byId(props.id) ?? null)
 
 /** Messages of the active chat, without the system turn. */
-const messages = computed(() => conversations.active?.messages.filter((m) => m.role !== 'system') ?? [])
+const messages = computed(
+	() => conversation.value?.messages.filter((message) => message.role !== 'system') ?? []
+)
 
-onMounted(() => {
-	if (!conversations.active) conversations.create()
-})
+/**
+ * Keeps the store in sync with the url, and redirects when the url points at
+ * a chat that no longer exists — a stale bookmark, or a chat deleted in
+ * another tab.
+ */
+watch(
+	() => props.id,
+	(id) => {
+		if (conversations.byId(id)) {
+			conversations.setActive(id)
+		} else {
+			router.replace({ name: 'home' })
+		}
+	},
+	{ immediate: true }
+)
 
 /**
  * Expands a leading `/command` into its preset prefix.
@@ -40,10 +60,9 @@ function applyPreset(input: string): string {
 
 const askAi = async (): Promise<void> => {
 	const text = prompt.value.trim()
-	if (!text || pending.value) return
+	if (!text || pending.value || !conversation.value) return
 
-	const conversation = conversations.active ?? conversations.create()
-	const conversationId = conversation.id
+	const conversationId = conversation.value.id
 
 	conversations.appendMessage(conversationId, 'user', text)
 	prompt.value = ''
@@ -72,50 +91,66 @@ const askAi = async (): Promise<void> => {
 		const message = error instanceof Error ? error.message : 'The request failed.'
 
 		if (reply) {
-			conversations.updateMessage(conversationId, reply.id, { status: 'error', error: message })
+			conversations.updateMessage(conversationId, reply.id, {
+				status: 'error',
+				error: message
+			})
 		}
 		toasts.error(message)
 	} finally {
 		// Always reset. Previously this lived inside the success handler only,
 		// so a single failed request disabled the input until a page reload.
 		pending.value = false
-		promptElement.value?.scrollIntoView()
+		bottom.value?.scrollIntoView({ behavior: 'smooth' })
 	}
 }
 </script>
 
 <template>
-	<main class="py-12 mb-auto">
-		<LoadingIndicator v-if="pending" />
-		<ul>
-			<li
-				v-for="message in messages"
-				:key="message.id"
-				class="px-12 py-3 leading-normal whitespace-pre-wrap"
-				:class="
-					message.role === 'assistant'
-						? 'bg-neutral-300 dark:bg-neutral-700'
-						: 'bg-transparent'
-				"
+	<div class="flex flex-col flex-1 min-h-0">
+		<div class="flex-1 min-h-0 overflow-y-auto">
+			<p
+				v-if="!messages.length"
+				class="p-12 text-center text-neutral-500 dark:text-neutral-400"
 			>
-				<span v-if="message.status === 'error'" class="text-red-700 dark:text-red-400">
-					{{ message.error }}
-				</span>
-				<span v-else>{{ message.content }}</span>
-			</li>
-		</ul>
-	</main>
-	<footer class="w-screen px-12 py-4">
-		<div ref="promptElement">
+				Ask something to start this chat. Type <code>/</code> to use a persona.
+			</p>
+
+			<ul>
+				<li
+					v-for="message in messages"
+					:key="message.id"
+					class="px-6 py-4 leading-normal whitespace-pre-wrap md:px-12"
+					:class="
+						message.role === 'assistant'
+							? 'bg-neutral-300 dark:bg-neutral-700'
+							: 'bg-transparent'
+					"
+				>
+					<span
+						v-if="message.status === 'error'"
+						class="text-red-700 dark:text-red-400"
+					>
+						{{ message.error }}
+					</span>
+					<span v-else>{{ message.content }}</span>
+				</li>
+			</ul>
+
+			<LoadingIndicator v-if="pending" />
+			<div ref="bottom"></div>
+		</div>
+
+		<footer class="px-6 py-4 border-t border-neutral-300 md:px-12 dark:border-neutral-700">
 			<input
 				type="text"
 				placeholder="Ask me something"
 				v-model="prompt"
-				class="w-full px-6 py-4 text-sm bg-white border-2 border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
+				class="w-full px-6 py-4 text-sm bg-white border-2 rounded-lg border-neutral-300 focus:outline-none focus:border-neutral-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
 				:disabled="pending"
 				autofocus
 				@keyup.enter="askAi()"
 			/>
-		</div>
-	</footer>
+		</footer>
+	</div>
 </template>

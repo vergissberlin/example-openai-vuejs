@@ -11,10 +11,23 @@
     <meta property="og:description" content="Custom ChatGPT with vue to illustrate how it could work" />
     <meta property="og:url" content="https://vergissberlin.github.io/example-openai-vuejs/" />
     <meta property="og:image" content="https://vergissberlin.github.io/example-openai-vuejs/og.png" />
+    <script>
+        // Restores the url stashed by public/404.html before the router boots,
+        // so a reloaded deep link lands where it was instead of on the root.
+        (function () {
+            var stashed = sessionStorage.getItem('spa-redirect')
+            if (!stashed) return
+            sessionStorage.removeItem('spa-redirect')
+            var target = new URL(stashed)
+            if (target.origin === location.origin) {
+                history.replaceState(null, '', target.pathname + target.search + target.hash)
+            }
+        })()
+    </script>
 </head>
 
-<body class="flex w-screen h-screen text-gray-800 bg-neutral-200 dark:bg-neutral-800 dark:text-gray-200">
-    <div id="app" class="flex flex-col justify-between w-screen h-screen"></div>
+<body class="w-screen h-screen overflow-hidden text-gray-800 bg-neutral-200 dark:bg-neutral-800 dark:text-gray-200">
+    <div id="app" class="w-full h-full"></div>
     <script type="module" src="/src/main.ts"></script>
 </body>
 
