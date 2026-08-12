@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Ref } from 'vue'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
+import ChatMessage from '../components/chat/ChatMessage.vue'
 import { useConversationsStore } from '../stores/conversations'
 import { useSettingsStore } from '../stores/settings'
 import { usePromptsStore } from '../stores/prompts'
@@ -116,26 +117,7 @@ const askAi = async (): Promise<void> => {
 				Ask something to start this chat. Type <code>/</code> to use a persona.
 			</p>
 
-			<ul>
-				<li
-					v-for="message in messages"
-					:key="message.id"
-					class="px-6 py-4 leading-normal whitespace-pre-wrap md:px-12"
-					:class="
-						message.role === 'assistant'
-							? 'bg-neutral-300 dark:bg-neutral-700'
-							: 'bg-transparent'
-					"
-				>
-					<span
-						v-if="message.status === 'error'"
-						class="text-red-700 dark:text-red-400"
-					>
-						{{ message.error }}
-					</span>
-					<span v-else>{{ message.content }}</span>
-				</li>
-			</ul>
+			<ChatMessage v-for="message in messages" :key="message.id" :message="message" />
 
 			<LoadingIndicator v-if="pending" />
 			<div ref="bottom"></div>
