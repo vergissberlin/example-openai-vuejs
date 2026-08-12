@@ -1,80 +1,108 @@
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
+import { useConversationsStore } from '../stores/conversations'
+import { useSettingsStore } from '../stores/settings'
+import { usePromptsStore } from '../stores/prompts'
+import { useToastsStore } from '../stores/toasts'
 import { ref } from 'vue'
 import type { Ref } from 'vue'
-import { apiBaseUrl } from '../config'
 
-const promptTemplates = {
-	neutral: '',
-	joda: 'Write like Joda: ',
-	gpt3: 'Write like GPT-3: ',
-	steve: 'Write like Steve Jobs. Very polite and push people forward: ',
-	elon: 'Write like Elon Musk: ',
-	marvin: 'Write like Marvin the Paranoid Android: '
-}
+const conversations = useConversationsStore()
+const settings = useSettingsStore()
+const prompts = usePromptsStore()
+const toasts = useToastsStore()
 
-// Derived from the object rather than hand-written, so the two cannot
-// drift apart again — the previous literal union listed a 'trump' key
-// that did not exist and omitted 'neutral', which is why the lookup
-// below needed a @ts-ignore.
-type PromptTemplate = keyof typeof promptTemplates
-
-// Refs
 const prompt: Ref<string> = ref('')
-const disabled: Ref<boolean> = ref(false)
-const chats: Ref<Array<string>> = ref([])
-const url = apiBaseUrl
-const configTemplate: Ref<PromptTemplate> = ref('neutral')
-const messagesElement = ref<HTMLDivElement | null>(null)
+const pending = ref(false)
 const promptElement = ref<HTMLDivElement | null>(null)
 
-// Methods
+/** Messages of the active chat, without the system turn. */
+const messages = computed(() => conversations.active?.messages.filter((m) => m.role !== 'system') ?? [])
+
+onMounted(() => {
+	if (!conversations.active) conversations.create()
+})
+
+/**
+ * Expands a leading `/command` into its preset prefix.
+ *
+ * This is what finally makes the personas reachable — they shipped with the
+ * original demo but had no UI to select them.
+ */
+function applyPreset(input: string): string {
+	const match = input.match(/^\/(\S+)\s*([\s\S]*)$/)
+	if (!match) return input
+
+	const preset = prompts.findByCommand(match[1])
+	return preset ? preset.prompt + match[2] : input
+}
+
 const askAi = async (): Promise<void> => {
-	// Disable input field
-	disabled.value = true
+	const text = prompt.value.trim()
+	if (!text || pending.value) return
 
-	// URL encode prompt
-	const promptEncoded = encodeURIComponent(promptTemplates[configTemplate.value] + prompt.value)
-	chats.value.push(prompt.value)
-	// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
-	// Set chats to response
-	await fetch(`${url}/text/?prompt=${promptEncoded}`)
-		.then((response) => response.json())
-		.then((data) => {
-			console.log('Success:', data)
-			// remove the 2 new lines at the beginning of the answer
-			data.text = data.text.replace(/^\n\n/, '')
+	const conversation = conversations.active ?? conversations.create()
+	const conversationId = conversation.id
 
-			// replace new line with br
-			data.text = data.text.replace(/\n/g, '<br />')
+	conversations.appendMessage(conversationId, 'user', text)
+	prompt.value = ''
+	pending.value = true
 
-			// Push new answer to chats array
-			chats.value.push(data.text)
+	const reply = conversations.appendMessage(conversationId, 'assistant', '', {
+		status: 'streaming',
+		model: settings.model
+	})
 
-			// Scroll to bottom of the page
-			const div = promptElement.value as HTMLDivElement
-			div.scrollIntoView()
+	try {
+		const query = encodeURIComponent(applyPreset(text))
+		const response = await fetch(`${settings.resolveBaseUrl()}/text/?prompt=${query}`)
 
-			// Reset prompt
-			disabled.value = false
-			prompt.value = ''
-		})
-		.catch((error) => {
-			console.error('Error:', error)
-		})
+		if (!response.ok) {
+			throw new Error(`The server responded with ${response.status}.`)
+		}
+
+		const data = (await response.json()) as { text?: string }
+		const content = (data.text ?? '').replace(/^\n\n/, '')
+
+		if (reply) {
+			conversations.updateMessage(conversationId, reply.id, { content, status: 'done' })
+		}
+	} catch (error) {
+		const message = error instanceof Error ? error.message : 'The request failed.'
+
+		if (reply) {
+			conversations.updateMessage(conversationId, reply.id, { status: 'error', error: message })
+		}
+		toasts.error(message)
+	} finally {
+		// Always reset. Previously this lived inside the success handler only,
+		// so a single failed request disabled the input until a page reload.
+		pending.value = false
+		promptElement.value?.scrollIntoView()
+	}
 }
 </script>
 
 <template>
 	<main class="py-12 mb-auto">
-		<LoadingIndicator v-if="disabled" />
-		<ul ref="messagesElement">
+		<LoadingIndicator v-if="pending" />
+		<ul>
 			<li
-				v-for="chat in chats"
-				:key="chat"
-				v-html="chat"
-				class="px-12 py-3 even:bg-neutral-300 dark:even:bg-neutral-700 leading-0"
-			></li>
+				v-for="message in messages"
+				:key="message.id"
+				class="px-12 py-3 leading-normal whitespace-pre-wrap"
+				:class="
+					message.role === 'assistant'
+						? 'bg-neutral-300 dark:bg-neutral-700'
+						: 'bg-transparent'
+				"
+			>
+				<span v-if="message.status === 'error'" class="text-red-700 dark:text-red-400">
+					{{ message.error }}
+				</span>
+				<span v-else>{{ message.content }}</span>
+			</li>
 		</ul>
 	</main>
 	<footer class="w-screen px-12 py-4">
@@ -84,7 +112,7 @@ const askAi = async (): Promise<void> => {
 				placeholder="Ask me something"
 				v-model="prompt"
 				class="w-full px-6 py-4 text-sm bg-white border-2 border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
-				:disabled="disabled"
+				:disabled="pending"
 				autofocus
 				@keyup.enter="askAi()"
 			/>

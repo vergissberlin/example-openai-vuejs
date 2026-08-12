@@ -21,10 +21,13 @@
     "format": "prettier --write src/ e2e/"
   },
   "dependencies": {
+    "@vue/devtools-api": "^8.2.1",
+    "pinia": "^4.0.3",
     "vue": "^3.5.41",
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
+    "@pinia/testing": "^2.0.1",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.20.1",
