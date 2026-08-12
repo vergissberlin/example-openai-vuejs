@@ -21,10 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -39,13 +36,21 @@ jobs:
           cache: 'yarn'
       - run: yarn
       - run: yarn build
-      - run: |
-          pwd
-          echo "${{ steps.deployment.outputs.page_url }}"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist/'
+
+  # Only deploy after a merge to main - the github-pages environment's
+  # deployment-branch protection rejects any other ref outright.
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Deploy to GitHub Pages
