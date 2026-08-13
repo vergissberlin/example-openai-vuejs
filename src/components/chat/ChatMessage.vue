@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Message } from '../../types/chat'
-import { loadMarkdown, renderIfLoaded } from '../../services/markdownLoader'
+import { prepare, renderIfLoaded } from '../../services/markdownLoader'
 
 const props = defineProps<{ message: Message; canRegenerate?: boolean }>()
 const emit = defineEmits<{
@@ -24,20 +24,30 @@ async function copyMessage() {
 	}, 1500)
 }
 
-/** Flips once the renderer chunk has arrived, re-running the computed below. */
-const rendererReady = ref(false)
+/**
+ * Bumped whenever another piece of the renderer arrives, which re-runs the
+ * computed below. A counter rather than a boolean because maths loads as a
+ * second step after the base renderer.
+ */
+const rendererVersion = ref(0)
 
-onMounted(() => {
-	if (props.message.role !== 'assistant') return
-	loadMarkdown().then(() => {
-		rendererReady.value = true
-	})
-})
+watch(
+	() => props.message.content,
+	(content) => {
+		if (props.message.role !== 'assistant') return
+		// Re-checked as content streams in: a formula may only appear halfway
+		// through a response.
+		prepare(content).then(() => {
+			rendererVersion.value += 1
+		})
+	},
+	{ immediate: true }
+)
 
 const html = computed(() => {
 	if (props.message.role !== 'assistant') return ''
-	// Read the flag so this recomputes when the chunk lands.
-	void rendererReady.value
+	// Read the counter so this recomputes when a chunk lands.
+	void rendererVersion.value
 	return renderIfLoaded(props.message.content)
 })
 

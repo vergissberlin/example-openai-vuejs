@@ -50,6 +50,55 @@ test('shows a not-found page for an unknown route', async ({ page }) => {
 	await expect(page.getByRole('heading', { name: 'This page does not exist' })).toBeVisible()
 })
 
+/*
+ * Maths is covered here rather than only in unit tests on purpose. The plugin
+ * is CommonJS, and vite's browser pre-bundle wraps it differently from
+ * vitest's SSR transform — a version of this shipped where every unit test
+ * passed and no formula rendered in an actual browser.
+ */
+test('renders maths, and fetches katex only when a message needs it', async ({ page }) => {
+	const katexRequests: string[] = []
+	page.on('request', (request) => {
+		if (/katex/i.test(request.url())) katexRequests.push(request.url())
+	})
+
+	await page.route('**/text/**', (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ text: 'No formulas here, just prose.' })
+		})
+	)
+
+	await page.goto('./')
+	await page.getByPlaceholder('Ask me something').fill('plain')
+	await page.locator('footer').getByRole('button', { name: 'Send' }).click()
+	await expect(page.getByText('No formulas here, just prose.')).toBeVisible()
+
+	// Nothing maths-related may be downloaded for an ordinary answer.
+	expect(katexRequests).toEqual([])
+
+	await page.route('**/text/**', (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ text: 'Mass-energy: $E = mc^2$. Also `echo $HOME` and \\$5.' })
+		})
+	)
+
+	await page.getByPlaceholder('Ask me something').fill('with maths')
+	await page.locator('footer').getByRole('button', { name: 'Send' }).click()
+
+	await expect(page.locator('.katex').first()).toBeVisible()
+	// The MathML screen readers rely on must survive sanitising.
+	await expect(page.locator('math').first()).toBeAttached()
+	expect(katexRequests.length).toBeGreaterThan(0)
+
+	// A shell variable and an escaped dollar are not formulas.
+	await expect(page.locator('code').filter({ hasText: 'echo $HOME' })).toBeVisible()
+	await expect(page.getByText('$5', { exact: false })).toBeVisible()
+})
+
 /**
  * Seeds the settings so the app uses the streaming protocol. The deployed
  * backend still speaks the one-shot legacy one, so this is the only way to

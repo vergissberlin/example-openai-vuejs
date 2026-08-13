@@ -62,6 +62,24 @@ only defence. User input is never parsed as markdown.
 The renderer is a lazily imported chunk. Statically imported it tripled the
 entry bundle, which every visitor would pay before a single message existed.
 
+Maths is a second lazy step on top: KaTeX with its stylesheet and fonts is
+larger than the rest of the renderer combined, and most conversations contain
+no formula, so it is fetched only when a message actually looks like it has
+one. The `$` pre-check that decides this is deliberately loose — it only
+decides whether to download, and the plugin makes the real call about what is
+a formula.
+
+Delimiter handling comes from a maintained plugin rather than hand-written
+rules, because the awkward cases — an escaped `\$`, a currency amount, a `$`
+inside a code span — are where a home-grown parser goes wrong, and they show
+up constantly in chat output.
+
+One trap worth knowing about: the plugin is CommonJS, and vite's browser
+pre-bundle wraps it as `{ default: { default: fn } }` while vitest's SSR
+transform gives `{ default: fn }`. Handing `md.use` the wrong one registers
+nothing and fails silently, which is why maths has an end-to-end test and not
+only unit tests.
+
 ## Persistence
 
 `services/persistence.ts` wraps values in `{ version, data }` so a later change

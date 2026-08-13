@@ -17,7 +17,7 @@ Ollama, LM Studio, OpenAI itself — in which case you supply the key.
 - Token-by-token streaming with a stop button, plus regenerate, edit-and-resend,
   copy and delete on individual messages
 - Markdown answers with syntax highlighting and copy-able code blocks, sanitised
-  with DOMPurify
+  with DOMPurify, plus LaTeX via `$…$` and `$$…$$`
 - Prompt presets applied with `/command`, including the personas the demo has
   always shipped
 - Settings for the endpoint, model, temperature, top_p, max tokens and system
@@ -105,6 +105,6 @@ pnpm format
 - [x] Add more documentation
 - [ ] Use components from [Vitesse](https://github.com/antfu/vitesse)
 - [x] Add more types
-- [ ] LaTeX rendering in answers
+- [x] LaTeX rendering in answers
 - [ ] Rebuild the backend as an OpenAI-compatible proxy, then switch the
       connection protocol to `/v1` by default

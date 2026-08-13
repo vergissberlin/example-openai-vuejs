@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { renderMarkdown, renderInline } from '../markdown'
+import { describe, it, expect, beforeAll } from 'vitest'
+import { renderMarkdown, renderInline, enableMath } from '../markdown'
 
 describe('markdown rendering', () => {
 	it('renders basic markdown', () => {
@@ -42,6 +42,69 @@ describe('markdown rendering', () => {
 
 		expect(html).toContain('target="_blank"')
 		expect(html).toContain('rel="noopener noreferrer nofollow"')
+	})
+})
+
+describe('maths', () => {
+	// Maths is registered on demand — KaTeX plus its stylesheet and fonts are
+	// larger than the rest of the renderer, and most conversations have none.
+	beforeAll(async () => {
+		await enableMath()
+	})
+
+	it('renders an inline formula', () => {
+		const html = renderMarkdown('Einstein wrote $E = mc^2$ in 1905.')
+
+		expect(html).toContain('katex')
+		expect(html).toContain('<math')
+		// The surrounding prose survives intact.
+		expect(html).toContain('in 1905.')
+	})
+
+	it('renders a display formula', () => {
+		const html = renderMarkdown('$$\n\\frac{a}{b}\n$$')
+
+		expect(html).toContain('katex')
+		expect(html).toContain('mfrac')
+	})
+
+	it('keeps the MathML that screen readers use', () => {
+		const host = document.createElement('div')
+		host.innerHTML = renderMarkdown('$x^2$')
+
+		// A visual-only rendering would leave nothing here.
+		expect(host.querySelector('math')).not.toBeNull()
+		expect(host.querySelector('annotation')?.textContent).toContain('x^2')
+	})
+
+	/*
+	 * The cases a hand-written delimiter parser gets wrong, which is why this
+	 * uses a maintained plugin.
+	 */
+	it('leaves an escaped dollar sign as text', () => {
+		const html = renderMarkdown('It costs \\$5.')
+
+		expect(html).not.toContain('katex')
+		expect(html).toContain('$5')
+	})
+
+	it('leaves dollar signs inside a code span alone', () => {
+		const host = document.createElement('div')
+		host.innerHTML = renderMarkdown('Run `echo $HOME` first.')
+
+		expect(host.querySelector('code')?.textContent).toBe('echo $HOME')
+		expect(host.innerHTML).not.toContain('katex')
+	})
+
+	it('leaves dollar signs inside a fenced block alone', () => {
+		const html = renderMarkdown('```bash\nexport A=$B\necho $A\n```')
+
+		expect(html).not.toContain('katex')
+		expect(html).toContain('code-block')
+	})
+
+	it('renders invalid latex as visible text instead of throwing', () => {
+		expect(() => renderMarkdown('$\\frac{1}{$')).not.toThrow()
 	})
 })
 
@@ -129,6 +192,21 @@ describe('sanitising', () => {
 			parse(renderMarkdown('![alt](data:image/png;base64,iVBORw0KGgo=)')).querySelector('img')
 				?.src
 		).toContain('data:image/png;base64')
+	})
+
+	/*
+	 * `style` had to be allowed for KaTeX to position glyphs. It is only
+	 * reachable from KaTeX's own output — the parser has raw HTML disabled, so
+	 * a style attribute a model writes is escaped to text long before the
+	 * sanitiser sees it.
+	 */
+	it('does not let a model inject a style attribute of its own', () => {
+		const host = parse(
+			renderMarkdown('<span style="background:url(javascript:alert(1))">x</span>')
+		)
+
+		expect(host.querySelectorAll('span[style]')).toHaveLength(0)
+		expect(host.textContent).toContain('<span style=')
 	})
 
 	it('sanitises inline rendering too', () => {
