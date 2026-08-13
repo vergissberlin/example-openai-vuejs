@@ -1,35 +1,240 @@
-@import './base.css';
+@import 'tailwindcss';
 
+/*
+ * Tailwind v4 has no `darkMode: 'class'` config option — the class-based
+ * variant is declared here instead. `useTheme` toggles `.dark` on <html>,
+ * which lets the app override the OS preference.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html,
+body,
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-
-  font-weight: normal;
+	height: 100%;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
+/*
+ * Markdown output.
+ *
+ * Tailwind's preflight strips heading and list styling, and the rendered HTML
+ * carries no utility classes (it comes from markdown-it, not from a
+ * template), so the element styles are restored here.
+ */
+.markdown-body {
+	line-height: 1.6;
+}
+.markdown-body > *:first-child {
+	margin-top: 0;
+}
+.markdown-body > *:last-child {
+	margin-bottom: 0;
+}
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol,
+.markdown-body blockquote,
+.markdown-body table {
+	margin: 0.75em 0;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+	margin: 1.2em 0 0.5em;
+	font-weight: 600;
+	line-height: 1.3;
+}
+.markdown-body h1 {
+	font-size: 1.5em;
+}
+.markdown-body h2 {
+	font-size: 1.3em;
+}
+.markdown-body h3 {
+	font-size: 1.1em;
+}
+.markdown-body ul,
+.markdown-body ol {
+	padding-left: 1.5em;
+}
+.markdown-body ul {
+	list-style: disc;
+}
+.markdown-body ol {
+	list-style: decimal;
+}
+.markdown-body a {
+	text-decoration: underline;
+}
+.markdown-body blockquote {
+	padding-left: 1em;
+	border-left: 3px solid currentColor;
+	opacity: 0.8;
+}
+.markdown-body table {
+	display: block;
+	max-width: 100%;
+	overflow-x: auto;
+	border-collapse: collapse;
+}
+.markdown-body th,
+.markdown-body td {
+	padding: 0.4em 0.75em;
+	border: 1px solid rgb(0 0 0 / 0.2);
+}
+.dark .markdown-body th,
+.dark .markdown-body td {
+	border-color: rgb(255 255 255 / 0.2);
+}
+/* Inline code only; fenced blocks are styled via .code-block below. */
+.markdown-body :not(pre) > code {
+	padding: 0.15em 0.4em;
+	font-size: 0.9em;
+	background: rgb(0 0 0 / 0.08);
+	border-radius: 0.25rem;
+}
+.dark .markdown-body :not(pre) > code {
+	background: rgb(255 255 255 / 0.12);
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+/* Fenced code blocks, emitted by the `fence` renderer in services/markdown.ts. */
+.code-block {
+	margin: 0.75em 0;
+	overflow: hidden;
+	background: #f6f8fa;
+	border: 1px solid rgb(0 0 0 / 0.15);
+	border-radius: 0.5rem;
+}
+.dark .code-block {
+	background: #0d1117;
+	border-color: rgb(255 255 255 / 0.15);
+}
+.code-block__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.35rem 0.75rem;
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	background: rgb(0 0 0 / 0.05);
+}
+.dark .code-block__header {
+	background: rgb(255 255 255 / 0.06);
+}
+.code-block__copy {
+	padding: 0.1rem 0.5rem;
+	cursor: pointer;
+	border-radius: 0.25rem;
+}
+.code-block__copy:hover {
+	background: rgb(0 0 0 / 0.08);
+}
+.dark .code-block__copy:hover {
+	background: rgb(255 255 255 / 0.12);
+}
+.code-block pre {
+	padding: 0.75rem;
+	overflow-x: auto;
+}
+.code-block code {
+	font-size: 0.875rem;
+	line-height: 1.5;
 }
 
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
+/*
+ * highlight.js token colours.
+ *
+ * Written out rather than importing one of the shipped themes, because each
+ * theme is a separate stylesheet and this app needs light and dark from a
+ * single build.
+ */
+.hljs-comment,
+.hljs-quote {
+	color: #6a737d;
+	font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-type {
+	color: #d73a49;
+}
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+	color: #032f62;
+}
+.hljs-title,
+.hljs-section,
+.hljs-name {
+	color: #6f42c1;
+}
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr,
+.hljs-attribute {
+	color: #005cc5;
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+	color: #e36209;
+}
+.hljs-built_in,
+.hljs-builtin-name {
+	color: #005cc5;
+}
+.hljs-addition {
+	color: #22863a;
+}
+.hljs-deletion {
+	color: #b31d28;
+}
+.hljs-emphasis {
+	font-style: italic;
+}
+.hljs-strong {
+	font-weight: 600;
+}
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
+.dark .hljs-comment,
+.dark .hljs-quote {
+	color: #8b949e;
+}
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-literal,
+.dark .hljs-type {
+	color: #ff7b72;
+}
+.dark .hljs-string,
+.dark .hljs-doctag,
+.dark .hljs-regexp {
+	color: #a5d6ff;
+}
+.dark .hljs-title,
+.dark .hljs-section,
+.dark .hljs-name {
+	color: #d2a8ff;
+}
+.dark .hljs-variable,
+.dark .hljs-template-variable,
+.dark .hljs-attr,
+.dark .hljs-attribute {
+	color: #79c0ff;
+}
+.dark .hljs-number,
+.dark .hljs-symbol,
+.dark .hljs-bullet {
+	color: #ffa657;
+}
+.dark .hljs-built_in,
+.dark .hljs-builtin-name {
+	color: #79c0ff;
+}
+.dark .hljs-addition {
+	color: #7ee787;
+}
+.dark .hljs-deletion {
+	color: #ffa198;
 }

@@ -102,3 +102,13 @@ dist
 
 # TernJS port file
 .tern-port
+
+# Local env overrides (.env.example is committed on purpose)
+.env.local
+.env.*.local
+
+# Playwright
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/

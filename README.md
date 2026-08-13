@@ -2,64 +2,140 @@
 
 This is a simple example of how to use [OpenAI](https://openai.com/) with [Vue.js](https://vuejs.org/).
 
-[![Build and deploy application](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/build-and-deploy.yml/badge.svg)](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/build-and-deploy.yml)
+[![CI](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/ci.yml/badge.svg)](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/ci.yml)
+
+The client talks to a small backend
+([example-openai-server](https://github.com/vergissberlin/example-openai-server))
+that holds the OpenAI API key, so the default setup needs no key in the
+browser. You can also point it at any other OpenAI-compatible endpoint —
+Ollama, LM Studio, OpenAI itself — in which case you supply the key.
+
+## Features
+
+- Multiple conversations in a sidebar: create, rename, pin, delete, search,
+  and one url per chat
+- Token-by-token streaming with a stop button, plus regenerate, edit-and-resend,
+  copy and delete on individual messages
+- Markdown answers with syntax highlighting and copy-able code blocks, sanitised
+  with DOMPurify, plus LaTeX via `$…$` and `$$…$$`
+- Prompt presets applied with `/command`, including the personas the demo has
+  always shipped
+- Settings for the endpoint, model, temperature, top_p, max tokens and system
+  prompt
+- Light/dark/system theme, keyboard shortcuts, and a mobile drawer layout
+- Chats persist in the browser and can be exported and imported as JSON
+
+See [docs/architecture.md](docs/architecture.md) for how it fits together.
+
+### A note on API keys
+
+Using your own endpoint means the key is stored in the browser. It is kept
+under its own storage key, never included in an export, and never sent to the
+bundled backend — but any script running on the page could read it. It defaults
+to being kept only for the tab session. On a shared or publicly deployed
+instance, prefer the bundled backend, which keeps the key server-side.
+
+## Requirements
+
+- Node.js `^20.19.0 || >=22.12.0`
+- [pnpm](https://pnpm.io/) — `corepack enable` picks up the pinned version automatically
 
 ## Project Setup
 
 ```sh
-yarn
+pnpm install
 ```
+
+Copy `.env.example` to `.env.local` to point the client at a different
+backend. Every `VITE_` variable ends up in the browser bundle, so none of
+them may hold secrets.
 
 ### Compile and Hot-Reload for Development
 
 ```sh
-yarn dev
+pnpm dev
 ```
 
 ### Type-Check, Compile and Minify for Production
 
 ```sh
-yarn build
+pnpm build
 ```
 
 ### Run Unit Tests with [Vitest](https://vitest.dev/)
 
 ```sh
-yarn test:unit
+pnpm test:unit
 ```
 
 ### Run End-to-End Tests with [Playwright](https://playwright.dev)
 
 ```sh
 # Install browsers for the first run
-npx playwright install
+pnpm exec playwright install
 
 # When testing on CI, must build the project first
-yarn build
+pnpm build
 
 # Runs the end-to-end tests
-yarn test:e2e
+pnpm test:e2e
 # Runs the tests only on Chromium
-yarn test:e2e --project=chromium
+pnpm test:e2e --project=chromium
 # Runs the tests of a specific file
-yarn test:e2e tests/example.spec.ts
+pnpm test:e2e e2e/vue.spec.ts
 # Runs the tests in debug mode
-yarn test:e2e --debug
+pnpm test:e2e --debug
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Lint with [ESLint](https://eslint.org/) and format with [Prettier](https://prettier.io/)
 
 ```sh
-yarn lint
+pnpm lint        # fixes what it can
+pnpm lint:check  # reports only, this is what CI runs
+pnpm format
 ```
+
+## Deployment (Coolify)
+
+The app ships as a container: the build runs in Node, and the output is served
+by nginx with an SPA fallback so client-side routes such as `/c/<id>` survive a
+reload.
+
+In Coolify, create an application from this repository with the **Docker
+Compose** build pack (`compose.yaml`), assign it a domain, and set:
+
+| Where | Name | Value |
+| --- | --- | --- |
+| **Build Variables** | `VITE_API_BASE_URL` | the backend url, e.g. `https://api.example.com` |
+
+**`VITE_API_BASE_URL` must be a build variable, not an environment variable.**
+Vite inlines `VITE_*` values into the bundle when it compiles; nothing reads
+them at runtime. Setting it as a plain environment variable is not an error —
+the container starts and serves happily, and every request goes to whatever url
+was baked in instead. The compose file fails the build if it is missing rather
+than letting that happen silently.
+
+The backend must allow this app's origin in its own `ALLOWED_ORIGINS`, since
+the two run on separate subdomains. A missing entry there shows up as a CORS
+error in the browser console and nothing else.
+
+Deployment used to go to GitHub Pages, which served the app from a subpath and
+needed a `404.html` redirect to make deep links work. Both are gone; CI now
+only verifies the code and builds the image.
+
+> One leftover: the Open Graph tags in `index.html` still name the old Pages
+> URL. Point them at the new domain once it is assigned.
 
 ## ToDo
 
-- [ ] Make model select- and configurable
+- [x] Make model select- and configurable
 - [ ] Add more models for code and image generation
 - [x] Loading animation
-- [ ] Change favicon and title
-- [ ] Add more tests
-- [ ] Add more documentation
+- [x] Change favicon and title
+- [x] Add more tests
+- [x] Add more documentation
 - [ ] Use components from [Vitesse](https://github.com/antfu/vitesse)
-- [ ] Add more types
+- [x] Add more types
+- [x] LaTeX rendering in answers
+- [ ] Rebuild the backend as an OpenAI-compatible proxy, then switch the
+      connection protocol to `/v1` by default

@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 'ci-${{ github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint:check
+
+      - name: Type check
+        run: pnpm type-check
+
+      - name: Unit tests
+        run: pnpm test:unit
+
+      - name: Build
+        run: pnpm build-only
+
+      - name: Install playwright browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      - name: Upload playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      # Deployment is Coolify's job now: it builds the image from the
+      # Dockerfile on push. This workflow only has to say whether the code is
+      # sound. It previously also published to GitHub Pages, which is switched
+      # off — see compose.yaml and the README.
+      - name: Build container image
+        run: docker build --build-arg VITE_API_BASE_URL=https://example.invalid -t example-openai-vuejs:ci .

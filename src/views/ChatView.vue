@@ -1,96 +1,266 @@
 <script setup lang="ts">
-	import LoadingIndicator from '../components/LoadingIndicator.vue'
-	import { ref, nextTick, onMounted } from 'vue'
-	import type { Ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import LoadingIndicator from '../components/LoadingIndicator.vue'
+import ChatMessage from '../components/chat/ChatMessage.vue'
+import { useConversationsStore } from '../stores/conversations'
+import { useSettingsStore } from '../stores/settings'
+import { usePromptsStore } from '../stores/prompts'
+import { useToastsStore } from '../stores/toasts'
+import { streamChat } from '../services/chat/client'
+import { fromUnknown } from '../services/chat/errors'
+import type { Message } from '../types/chat'
 
-	// Refs
-	const prompt: Ref<string> = ref('')
-	const disabled: Ref<boolean> = ref(false)
-	const chats: Ref<Array<string>> = ref([])
-	const url = 'https://example-openai-server-production.up.railway.app'
-	const configTemplate: Ref<string> = ref('neutral')
-	const messagesElement = ref<HTMLDivElement | null>(null)
-	const promptElement = ref<HTMLDivElement | null>(null)
+const props = defineProps<{ id: string }>()
 
-	// Type for prompt templates
-	type PromptTemplates = 'joda' | 'gpt3' | 'steve' | 'elon' | 'trump' | 'marvin'
+const router = useRouter()
+const conversations = useConversationsStore()
+const settings = useSettingsStore()
+const prompts = usePromptsStore()
+const toasts = useToastsStore()
 
-	const promptTemplates = {
-		neutral: '',
-		joda: 'Write like Joda: ',
-		gpt3: 'Write like GPT-3: ',
-		steve: 'Write like Steve Jobs. Very polite and push people forward: ',
-		elon: 'Write like Elon Musk: ',
-		marvin: 'Write like Marvin the Paranoid Android: '
-	}
+const prompt = ref('')
+const pending = ref(false)
+const bottom = ref<HTMLDivElement | null>(null)
 
-	onMounted(async () => {
-		await nextTick()
-		const div = messagesElement.value!.lastElementChild as HTMLDivElement
-		//div.scrollIntoView().catch(() => {})
+/** Live while a response streams; `stop()` aborts through it. */
+let controller: AbortController | null = null
+
+const conversation = computed(() => conversations.byId(props.id) ?? null)
+
+/** Messages of the active chat, without the system turn. */
+const messages = computed(
+	() => conversation.value?.messages.filter((message) => message.role !== 'system') ?? []
+)
+
+/**
+ * Keeps the store in sync with the url, and redirects when the url points at
+ * a chat that no longer exists — a stale bookmark, or a chat deleted in
+ * another tab.
+ */
+watch(
+	() => props.id,
+	(id) => {
+		if (conversations.byId(id)) {
+			conversations.setActive(id)
+		} else {
+			router.replace({ name: 'home' })
+		}
+	},
+	{ immediate: true }
+)
+
+/**
+ * Expands a leading `/command` into its preset prefix.
+ *
+ * This is what finally makes the personas reachable — they shipped with the
+ * original demo but had no UI to select them.
+ */
+function applyPreset(input: string): string {
+	const match = input.match(/^\/(\S+)\s*([\s\S]*)$/)
+	if (!match) return input
+
+	const preset = prompts.findByCommand(match[1])
+	return preset ? preset.prompt + match[2] : input
+}
+
+/** Everything the model sees: system prompt, prior turns, the new message. */
+function buildRequestMessages(history: Message[], userText: string): Message[] {
+	// Conversation first: a per-chat prompt is the more specific setting, and
+	// the type documents it as overriding the global default.
+	const system = conversation.value?.systemPrompt?.trim() || settings.defaultSystemPrompt.trim()
+
+	return [
+		...(system
+			? [
+					{
+						id: 'system',
+						role: 'system' as const,
+						content: system,
+						createdAt: 0,
+						status: 'done' as const
+					}
+				]
+			: []),
+		...history.filter((message) => message.role !== 'system' && message.content),
+		{
+			id: 'pending',
+			role: 'user' as const,
+			content: userText,
+			createdAt: Date.now(),
+			status: 'done' as const
+		}
+	]
+}
+
+function stop() {
+	controller?.abort()
+}
+
+async function send(text: string = prompt.value.trim()): Promise<void> {
+	if (!text || pending.value || !conversation.value) return
+
+	const conversationId = conversation.value.id
+	const history = [...conversation.value.messages]
+
+	conversations.appendMessage(conversationId, 'user', text)
+	prompt.value = ''
+	pending.value = true
+
+	const reply = conversations.appendMessage(conversationId, 'assistant', '', {
+		status: 'streaming',
+		model: settings.model
 	})
 
-	// Methods
-	const askAi = async (): Promise<void> => {
-		// Disable input field
-		disabled.value = true
+	controller = new AbortController()
+	let received = ''
 
-		// URL encode prompt
-		// @ts-ignore
-		const promptEncoded = encodeURIComponent(promptTemplates[configTemplate.value] + prompt.value)
-		chats.value.push(prompt.value)
-		// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
-		// Set chats to response
-		await fetch(`${url}/text/?prompt=${promptEncoded}`)
-			.then((response) => response.json())
-			.then((data) => {
-				console.log('Success:', data)
-				// remove the 2 new lines at the beginning of the answer
-				data.text = data.text.replace(/^\n\n/, '')
+	try {
+		const stream = streamChat(settings.resolveConnection(), {
+			messages: buildRequestMessages(history, applyPreset(text)),
+			model: settings.model,
+			temperature: settings.params.temperature,
+			topP: settings.params.topP,
+			maxTokens: settings.params.maxTokens,
+			signal: controller.signal
+		})
 
-				// replace new line with br
-				data.text = data.text.replace(/\n/g, '<br />')
+		for await (const delta of stream) {
+			received += delta
+			if (reply) {
+				conversations.updateMessage(conversationId, reply.id, { content: received })
+			}
+			bottom.value?.scrollIntoView({ block: 'end' })
+		}
 
-				// Push new answer to chats array
-				chats.value.push(data.text)
+		if (reply) {
+			conversations.updateMessage(conversationId, reply.id, { status: 'done' })
+		}
+	} catch (error) {
+		const chatError = fromUnknown(error)
 
-				// Scroll to bottom of the page
-				const div = promptElement.value as HTMLDivElement
-				div.scrollIntoView()
-
-				// Reset prompt
-				disabled.value = false
-				prompt.value = ''
+		if (reply) {
+			// Whatever arrived before the failure is kept: a partial answer is
+			// more useful than discarding it, and marking the message tells the
+			// user it is incomplete.
+			conversations.updateMessage(conversationId, reply.id, {
+				content: received,
+				status: chatError.kind === 'aborted' ? 'aborted' : 'error',
+				error: received ? undefined : chatError.message
 			})
-			.catch((error) => {
-				console.error('Error:', error)
-			})
+		}
+
+		// Stopping on purpose is not a failure worth a toast.
+		if (chatError.kind !== 'aborted') toasts.error(chatError.message)
+	} finally {
+		// Always reset. Previously this lived inside the success handler only,
+		// so a single failed request disabled the input until a page reload.
+		pending.value = false
+		controller = null
+		bottom.value?.scrollIntoView({ behavior: 'smooth' })
 	}
+}
+
+/**
+ * Re-runs the user turn that produced `messageId`.
+ *
+ * Everything from that user message onwards is dropped first: the answer is
+ * being replaced, and the turns that followed it were answers to a branch of
+ * the conversation that no longer exists.
+ */
+function regenerate(messageId: string) {
+	if (pending.value || !conversation.value) return
+
+	const all = conversation.value.messages
+	const index = all.findIndex((message) => message.id === messageId)
+	if (index < 1) return
+
+	const question = [...all.slice(0, index)].reverse().find((message) => message.role === 'user')
+	if (!question) return
+
+	conversations.truncateFrom(conversation.value.id, question.id)
+	void send(question.content)
+}
+
+/** Puts a user message back in the composer and drops everything after it. */
+function edit(messageId: string) {
+	if (pending.value || !conversation.value) return
+
+	const message = conversation.value.messages.find((entry) => entry.id === messageId)
+	if (!message) return
+
+	prompt.value = message.content
+	conversations.truncateFrom(conversation.value.id, messageId)
+}
+
+function remove(messageId: string) {
+	if (!conversation.value) return
+	conversations.removeMessage(conversation.value.id, messageId)
+}
+
+function onKeydown(event: KeyboardEvent) {
+	if (event.key !== 'Enter') return
+	// Shift+Enter inserts a newline; plain Enter sends, unless turned off.
+	if (event.shiftKey || !settings.sendOnEnter) return
+
+	event.preventDefault()
+	void send()
+}
 </script>
 
 <template>
-	<main class="py-12 mb-auto">
-		<LoadingIndicator v-if="disabled" />
-		<ul ref="messagesElement">
-			<li
-				v-for="chat in chats"
-				:key="chat"
-				v-html="chat"
-				class="px-12 py-3 even:bg-neutral-300 dark:even:bg-neutral-700 leading-0"
-			></li>
-		</ul>
-	</main>
-	<footer class="w-screen px-12 py-4">
-		<div ref="promptElement">
-			<input
-				type="text"
-				placeholder="Ask me something"
-				v-model="prompt"
-				class="w-full px-6 py-4 text-sm bg-white border-2 border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
-				:disabled="disabled"
-				autofocus
-				@keyup.enter="askAi()"
+	<div class="flex flex-col flex-1 min-h-0">
+		<div class="flex-1 min-h-0 overflow-y-auto">
+			<p
+				v-if="!messages.length"
+				class="p-12 text-center text-neutral-500 dark:text-neutral-400"
+			>
+				Ask something to start this chat. Type <code>/</code> to use a persona.
+			</p>
+
+			<ChatMessage
+				v-for="(message, index) in messages"
+				:key="message.id"
+				:message="message"
+				:can-regenerate="!pending && index === messages.length - 1"
+				@regenerate="regenerate"
+				@edit="edit"
+				@remove="remove"
 			/>
+
+			<LoadingIndicator v-if="pending && !messages.at(-1)?.content" />
+			<div ref="bottom"></div>
 		</div>
-	</footer>
+
+		<footer class="px-6 py-4 border-t border-neutral-300 md:px-12 dark:border-neutral-700">
+			<div class="flex items-end gap-2">
+				<textarea
+					v-model="prompt"
+					rows="1"
+					placeholder="Ask me something"
+					class="flex-1 px-6 py-4 text-sm bg-white border-2 rounded-lg resize-y border-neutral-300 focus:outline-none focus:border-neutral-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
+					autofocus
+					@keydown="onKeydown"
+				></textarea>
+
+				<button
+					v-if="pending"
+					type="button"
+					class="px-5 py-4 text-sm font-medium text-white bg-red-700 rounded-lg hover:bg-red-600"
+					@click="stop"
+				>
+					Stop
+				</button>
+				<button
+					v-else
+					type="button"
+					class="px-5 py-4 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-600 disabled:opacity-50"
+					:disabled="!prompt.trim()"
+					@click="send()"
+				>
+					Send
+				</button>
+			</div>
+		</footer>
+	</div>
 </template>

@@ -1,94 +1,90 @@
 <script setup lang="ts">
-	import LoadingIndicator from '../components/LoadingIndicator.vue'
-	import { ref, nextTick, onMounted } from 'vue'
-	import type { Ref } from 'vue'
+import { ref } from 'vue'
+import type { Ref } from 'vue'
+import LoadingIndicator from '../components/LoadingIndicator.vue'
+import { useSettingsStore } from '../stores/settings'
+import { useToastsStore } from '../stores/toasts'
 
-	// Interfaces
-	interface Result {
-		id: number
-		prompt?: string | number | symbol | undefined
-		image?: string
+interface Result {
+	id: string
+	prompt: string
+	image?: string
+}
+
+const settings = useSettingsStore()
+const toasts = useToastsStore()
+
+const prompt: Ref<string> = ref('')
+const pending: Ref<boolean> = ref(false)
+const results: Ref<Array<Result>> = ref([])
+const bottom = ref<HTMLDivElement | null>(null)
+
+const askAi = async (): Promise<void> => {
+	const text = prompt.value.trim()
+	if (!text || pending.value) return
+
+	pending.value = true
+
+	try {
+		const query = encodeURIComponent(text)
+		const response = await fetch(`${settings.resolveBaseUrl()}/image/?prompt=${query}`)
+
+		if (!response.ok) {
+			throw new Error(`The server responded with ${response.status}.`)
+		}
+
+		const data = (await response.json()) as { image?: string }
+		results.value.push({ id: crypto.randomUUID(), prompt: text, image: data.image })
+		prompt.value = ''
+	} catch (error) {
+		// Same bug as the chat view had: `disabled` was only reset on success,
+		// so one failure locked the input until a reload — and the failure was
+		// never shown to the user.
+		toasts.error(error instanceof Error ? error.message : 'The request failed.')
+	} finally {
+		pending.value = false
+		bottom.value?.scrollIntoView({ behavior: 'smooth' })
 	}
-
-	// Refs
-	const prompt: Ref<string> = ref('')
-	const disabled: Ref<boolean> = ref(false)
-	const results: Ref<Array<Result>> = ref([])
-	const url = 'https://vgbln-openai.herokuapp.com'
-	const messagesElement = ref<HTMLDivElement | null>(null)
-	const promptElement = ref<HTMLDivElement | null>(null)
-
-	onMounted(async () => {
-		await nextTick()
-		const div = messagesElement.value!.lastElementChild as HTMLDivElement
-		// div.scrollIntoView().catch(() => {})
-	})
-
-	// Methods
-	const askAi = async (): Promise<void> => {
-		// Dieses wunderschöne und intelligente Mädchen mit den grünen Haaren und der Lederjacke vom Gymnasium!
-
-		// Disable input field
-		disabled.value = true
-
-		// URL encode prompt
-		const promptEncoded = encodeURIComponent(prompt.value)
-		// fetch get request with prompt as parameter and json response  to localhost 3000 with prompt
-		// Set results to response
-		await fetch(`${url}/image/?prompt=${promptEncoded}`)
-			.then((response) => response.json())
-			.then((data) => {
-				console.log('Success:', data)
-
-				// Push new answer to results array
-				results.value.push({
-					id: results.value.length,
-					prompt: prompt.value,
-					image: data.image
-				})
-
-				// Scroll to bottom of the page
-				const div = promptElement.value as HTMLDivElement
-				div.scrollIntoView()
-
-				// Reset prompt
-				disabled.value = false
-				prompt.value = ''
-			})
-			.catch((error) => {
-				console.error('Error:', error)
-			})
-	}
+}
 </script>
 
 <template>
-	<main>
-		<LoadingIndicator v-if="disabled" />
-		<ul class="" ref="messagesElement">
-			<li
-				v-for="result in results"
-				:key="result.prompt"
-				class="px-12 py-3 even:bg-neutral-300 dark:even:bg-neutral-700 leading-0"
+	<div class="flex flex-col flex-1 min-h-0">
+		<div class="flex-1 min-h-0 overflow-y-auto">
+			<p
+				v-if="!results.length"
+				class="p-12 text-center text-neutral-500 dark:text-neutral-400"
 			>
-				<picture>
-					<img :src="result.image" />
-					<figcaption>{{ result.prompt }}</figcaption>
-				</picture>
-			</li>
-		</ul>
-	</main>
+				Describe an image to generate one.
+			</p>
 
-	<footer class="w-screen px-12 py-4">
-		<div ref="promptElement">
+			<ul>
+				<li
+					v-for="result in results"
+					:key="result.id"
+					class="px-6 py-4 even:bg-neutral-300 dark:even:bg-neutral-700 md:px-12"
+				>
+					<figure>
+						<img :src="result.image" :alt="result.prompt" class="max-w-full" />
+						<figcaption class="pt-2 text-sm">{{ result.prompt }}</figcaption>
+					</figure>
+				</li>
+			</ul>
+
+			<LoadingIndicator v-if="pending" />
+			<div ref="bottom"></div>
+		</div>
+
+		<footer class="px-6 py-4 border-t border-neutral-300 md:px-12 dark:border-neutral-700">
 			<input
 				type="text"
-				class="w-full px-6 py-4 text-sm bg-white border-2 border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
+				class="w-full px-6 py-4 text-sm bg-white border-2 rounded-lg border-neutral-300 focus:outline-none focus:border-neutral-400 dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
 				placeholder="Describe your image. Use your phantasie!"
 				v-model="prompt"
-				:disabled="disabled"
+				:disabled="pending"
 				autofocus
 				@keyup.enter="askAi()"
 			/>
-		</div>
-	</footer>
+		</footer>
+	</div>
 </template>

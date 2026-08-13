@@ -1,0 +1,30 @@
+# Coolify deployment for the chat client.
+#
+# Point Coolify at this repository with the "Docker Compose" build pack and
+# give the service a domain. Traefik terminates TLS and forwards to port 8080.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Build-time, not runtime. Vite inlines VITE_* variables into the
+        # bundle, so this has to be an argument to the build — set it in
+        # Coolify's *Build Variables*, not its Environment Variables. Getting
+        # this wrong fails quietly: the app builds and serves, and every
+        # request goes to the wrong host.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?set this to the backend url, e.g. https://api.example.com}
+
+    # Coolify reads this to route the domain you assign.
+    expose:
+      - '8080'
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
