@@ -9,27 +9,41 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-# Vite inlines VITE_* variables into the bundle at build time — they are not
-# read at runtime. Setting this as a plain container environment variable
-# would have no effect at all, and the failure is silent: the app would just
-# keep calling whatever url was baked in. In Coolify this belongs under Build
-# Variables, not Environment Variables.
-ARG VITE_API_BASE_URL
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-
-# Same rule, and the same silent failure: this one ends up in the Open Graph
-# tags, so getting it wrong means link previews point somewhere else entirely.
-ARG VITE_PUBLIC_URL
-ENV VITE_PUBLIC_URL=$VITE_PUBLIC_URL
+# This image is configured when it starts, not when it is built, so that one
+# published image works for any deployment. The sentinel tells the public-url
+# plugin in vite.config.ts to leave the %PUBLIC_URL% placeholder in index.html
+# for docker/40-runtime-config.sh to fill in.
+#
+# VITE_API_BASE_URL is deliberately not set either: src/config.ts prefers
+# window.__APP_CONFIG__, which the same script generates. Building the image
+# with either value baked in is what the entrypoint checks for and rejects.
+ENV VITE_PUBLIC_URL=runtime
 
 RUN pnpm build-only
 
 # Runtime stage: nothing but the static output and a web server.
 FROM nginxinc/nginx-unprivileged:alpine AS runtime
 
-# The unprivileged image already runs as a non-root user and listens on 8080.
+# The unprivileged image already runs as a non-root user (uid 101) and listens
+# on 8080.
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
+
+# Three directories, on purpose:
+#
+#   /usr/share/nginx/html  fingerprinted assets. Root-owned, read-only,
+#                          served directly.
+#   /opt/app-template      the two files that still hold placeholders. Never
+#                          served, so a broken startup cannot leak a page with
+#                          an unsubstituted url in its head.
+#   /opt/app-runtime       what the entrypoint renders. The only writable one.
+RUN mkdir -p /opt/app-template /opt/app-runtime \
+	&& mv /usr/share/nginx/html/index.html /opt/app-template/index.html \
+	&& rm -f /usr/share/nginx/html/config.js \
+	&& chown 101:101 /opt/app-runtime
+
+# The nginx image runs everything in here before starting the server.
+COPY --chmod=555 docker/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 
 EXPOSE 8080
 

@@ -9,6 +9,15 @@ import tailwindcss from '@tailwindcss/vite'
 const DEV_PUBLIC_URL = 'http://localhost:5173'
 
 /**
+ * Asks the plugin to leave the placeholder alone.
+ *
+ * The published container image is configured when it starts, not when it is
+ * built, so its build sets this and its entrypoint does the substitution. See
+ * docker/40-runtime-config.sh.
+ */
+const RUNTIME_SENTINEL = 'runtime'
+
+/**
  * Substitutes `%PUBLIC_URL%` in index.html with the deployment's own address.
  *
  * The Open Graph tags need an absolute url, and hardcoding one means it is
@@ -26,7 +35,10 @@ function publicUrl(): Plugin {
 		transformIndexHtml: {
 			order: 'pre',
 			handler(html) {
-				const url = (process.env.VITE_PUBLIC_URL || DEV_PUBLIC_URL).replace(/\/+$/, '')
+				const configured = process.env.VITE_PUBLIC_URL
+				if (configured === RUNTIME_SENTINEL) return html
+
+				const url = (configured || DEV_PUBLIC_URL).replace(/\/+$/, '')
 				return html.replaceAll('%PUBLIC_URL%', url)
 			}
 		}
