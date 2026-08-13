@@ -95,25 +95,62 @@ pnpm lint:check  # reports only, this is what CI runs
 pnpm format
 ```
 
+## Container image
+
+GitHub Actions builds the image and pushes it to the GitHub Container Registry
+on every push to `main`, after lint, type-check, unit tests, end-to-end tests
+and a smoke test against the running container have passed. Nothing reaches the
+registry that did not go through CI first.
+
+```
+ghcr.io/vergissberlin/example-openai-vuejs:latest
+ghcr.io/vergissberlin/example-openai-vuejs:sha-<commit>
+```
+
+`latest` moves; the `sha-` tag does not, which is what makes a rollback
+possible. Built for `linux/amd64` only — on arm the pull fails outright with
+`no matching manifest`, so you will know rather than wonder.
+
+```sh
+docker run --rm -p 8080:8080 \
+  -e API_BASE_URL=https://api.example.com \
+  -e PUBLIC_URL=https://chat.example.com \
+  ghcr.io/vergissberlin/example-openai-vuejs:latest
+```
+
+> **One-time step after the first publish.** Packages start out private.
+> Open the package page → *Package settings* → *Danger Zone* → *Change
+> visibility* → **Public**. There is no workflow flag for this.
+
 ## Deployment (Coolify)
 
-The app ships as a container: the build runs in Node, and the output is served
-by nginx with an SPA fallback so client-side routes such as `/c/<id>` survive a
-reload.
+The app ships as a container: nginx serves the built output with an SPA
+fallback, so client-side routes such as `/c/<id>` survive a reload.
 
 In Coolify, create an application from this repository with the **Docker
-Compose** build pack (`compose.yaml`), assign it a domain, and set:
+Compose** build pack (`compose.yaml`), assign it a domain, and set two
+**environment variables**:
 
-| Where | Name | Value |
-| --- | --- | --- |
-| **Build Variables** | `VITE_API_BASE_URL` | the backend url, e.g. `https://api.example.com` |
+| Name | Value |
+| --- | --- |
+| `API_BASE_URL` | the backend url, e.g. `https://api.example.com` |
+| `PUBLIC_URL` | this app's own url, e.g. `https://chat.example.com` |
 
-**`VITE_API_BASE_URL` must be a build variable, not an environment variable.**
-Vite inlines `VITE_*` values into the bundle when it compiles; nothing reads
-them at runtime. Setting it as a plain environment variable is not an error —
-the container starts and serves happily, and every request goes to whatever url
-was baked in instead. The compose file fails the build if it is missing rather
-than letting that happen silently.
+These are read when the container **starts**, not when the image is built, so
+one published image serves any deployment and a url change is a restart rather
+than a rebuild. The entrypoint refuses to start without them; a trailing slash
+on either is stripped.
+
+That is worth spelling out because vite normally works the other way round. It
+inlines `VITE_*` values at compile time, so a variable of that name set on a
+running container does nothing — and does nothing *silently*, since the app
+still starts and serves, pointing at whatever url was compiled in. This image
+sidesteps that: `API_BASE_URL` becomes `/config.js` at startup, and `PUBLIC_URL`
+is substituted into the Open Graph tags, which have to be in the served HTML
+because crawlers do not run the page's JavaScript.
+
+The `VITE_*` variables still exist for `pnpm dev` and for hosting the built
+output statically — see `.env.example`. The container ignores them.
 
 The backend must allow this app's origin in its own `ALLOWED_ORIGINS`, since
 the two run on separate subdomains. A missing entry there shows up as a CORS
@@ -122,9 +159,6 @@ error in the browser console and nothing else.
 Deployment used to go to GitHub Pages, which served the app from a subpath and
 needed a `404.html` redirect to make deep links work. Both are gone; CI now
 only verifies the code and builds the image.
-
-> One leftover: the Open Graph tags in `index.html` still name the old Pages
-> URL. Point them at the new domain once it is assigned.
 
 ## ToDo
 

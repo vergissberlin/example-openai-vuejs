@@ -107,8 +107,56 @@ markdown sanitiser landed before the key input existed.
 
 ## Deployment
 
-Built by GitHub Actions and published to GitHub Pages under
-`/example-openai-vuejs/`. Pages has no SPA fallback, so `public/404.html`
-stashes the requested url and hands it back to the app entry, which restores it
-into the history before the router boots — otherwise reloading `/c/<id>` is a
-hard 404.
+GitHub Actions builds the image and pushes it to GHCR; Coolify pulls it and
+runs it from `compose.yaml`. nginx serves the output from the root of its own
+domain, and the SPA fallback lives in `nginx.conf`, so a reloaded `/c/<id>`
+resolves through the router instead of 404ing.
+
+The backend runs on a separate subdomain, which means CORS applies: the
+client's origin has to appear in the server's `ALLOWED_ORIGINS`.
+
+### Configured at startup, not at build
+
+Vite inlines `VITE_*` values when it compiles. For a published image that is
+the wrong end: the urls would have to be known before anyone knows where the
+image runs, which makes a *public* image useful to exactly one deployment.
+
+So the image is configured when it starts. `docker/40-runtime-config.sh` runs
+from nginx's `/docker-entrypoint.d/` and renders two things:
+
+| Variable | Becomes | Read by |
+| --- | --- | --- |
+| `API_BASE_URL` | `/config.js`, setting `window.__APP_CONFIG__` | `src/config.ts`, at runtime |
+| `PUBLIC_URL` | the Open Graph tags in `index.html` | crawlers, without JavaScript |
+
+The Open Graph tags cannot go through `config.js` — crawlers do not execute the
+page's JavaScript, so those urls have to be present in the served HTML. Hence
+two mechanisms rather than one.
+
+`src/config.ts` prefers the runtime value, falls back to the compiled-in one,
+then to the local backend. That keeps `pnpm dev` and statically hosted builds
+working unchanged: nothing generates a config file there, and `public/config.js`
+ships an empty object so the `<script>` tag does not 404.
+
+Three details that each caused a wrong-but-working state while this was built:
+
+- **`config.js` must not be cached.** It carries no fingerprint and its content
+  differs between deployments of the very same image, so `no-store` rather than
+  `no-cache`.
+- **The entry document is not in the document root.** The Dockerfile moves it to
+  `/opt/app-template`, because a copy still holding `%PUBLIC_URL%` sitting in
+  the served directory is one misrouted request away from being served. Failing
+  is fine; serving a page with a broken url in its head is not.
+- **`/` needs its own nginx location.** The `index` directive resolves against
+  the document root, which deliberately has no entry document, and `try_files
+  $uri/` would match the root directory before ever reaching the rendered one.
+
+The build still knows both variables for the non-container path. The image is
+built with the sentinel `VITE_PUBLIC_URL=runtime`, which tells the plugin in
+`vite.config.ts` to leave the placeholder alone; the entrypoint refuses to start
+if it does not find one, so an image built any other way fails loudly instead of
+serving a url from whenever it was compiled.
+
+This used to deploy to GitHub Pages, which served the app from the
+`/example-openai-vuejs/` subpath and needed a `public/404.html` redirect to
+survive a reloaded deep link. Both are gone, and Pages is switched off.

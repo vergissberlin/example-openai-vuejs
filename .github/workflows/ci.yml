@@ -14,6 +14,9 @@ concurrency:
   group: 'ci-${{ github.ref }}'
   cancel-in-progress: true
 
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -41,6 +44,9 @@ jobs:
       - name: Unit tests
         run: pnpm test:unit
 
+      - name: Entrypoint tests
+        run: sh docker/40-runtime-config.test.sh
+
       - name: Build
         run: pnpm build-only
 
@@ -58,9 +64,118 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-      # Deployment is Coolify's job now: it builds the image from the
-      # Dockerfile on push. This workflow only has to say whether the code is
-      # sound. It previously also published to GitHub Pages, which is switched
-      # off — see compose.yaml and the README.
       - name: Build container image
-        run: docker build --build-arg VITE_API_BASE_URL=https://example.invalid -t example-openai-vuejs:ci .
+        run: docker build -t example-openai-vuejs:ci .
+
+      # Unit tests cannot reach this: the entrypoint, the nginx locations and
+      # the vite sentinel only meet inside a running container. Everything
+      # below has been wrong at some point in a way that still built cleanly.
+      - name: Smoke-test the container
+        run: |
+          set -euo pipefail
+          docker run -d --name smoke -p 8080:8080 \
+            -e API_BASE_URL=https://api.example.com \
+            -e PUBLIC_URL=https://chat.example.com \
+            example-openai-vuejs:ci
+
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/healthz >/dev/null && break
+            sleep 1
+          done
+
+          # The Dockerfile needs root for one step and switches back. Forget
+          # the switch back and everything still works — just as root, which
+          # is the whole reason for the unprivileged base image.
+          echo '--- unprivileged ---'
+          uid=$(docker exec smoke id -u)
+          if [ "$uid" = '0' ]; then
+            echo 'the container runs as root' >&2
+            exit 1
+          fi
+
+          echo '--- /config.js ---'
+          curl -fsS -D /tmp/config-headers http://127.0.0.1:8080/config.js | tee /tmp/config.js
+          grep -q 'apiBaseUrl: "https://api.example.com"' /tmp/config.js
+          grep -qi 'cache-control: no-store' /tmp/config-headers
+
+          echo '--- / ---'
+          curl -fsS http://127.0.0.1:8080/ >/tmp/index.html
+          grep -q 'content="https://chat.example.com/"' /tmp/index.html
+
+          # Not `! grep`: `set -e` does not fire on a negated command, so that
+          # spelling would report success no matter what the page contained.
+          if grep -q '%PUBLIC_URL%' /tmp/index.html; then
+            echo 'the entry document still carries an unsubstituted placeholder' >&2
+            exit 1
+          fi
+
+          echo '--- SPA fallback ---'
+          curl -fsS http://127.0.0.1:8080/c/does-not-exist >/tmp/deep.html
+          diff -q /tmp/index.html /tmp/deep.html
+
+      - name: Container logs
+        if: always()
+        run: docker logs smoke || true
+
+      # A container that starts without being told where its backend is would
+      # quietly serve a broken app, so the entrypoint refuses. Prove it does.
+      - name: Refuse to start without configuration
+        run: |
+          if docker run --rm example-openai-vuejs:ci; then
+            echo 'the container started without API_BASE_URL or PUBLIC_URL' >&2
+            exit 1
+          fi
+
+  # Publishing is gated on the whole of `ci`: an image that failed its tests
+  # must never reach the registry, where something could deploy it.
+  publish:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Issued for this run only, scoped by the `packages: write`
+          # permission above. No personal access token is involved.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # `latest` is what compose.yaml pulls; the sha tag is what makes a
+          # rollback possible, since `latest` moves.
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+          labels: |
+            org.opencontainers.image.title=example-openai-vuejs
+            org.opencontainers.image.description=Open WebUI-style chat client for the example OpenAI proxy
+
+      # linux/amd64 only. arm64 would need either QEMU, which makes the vite
+      # build several times slower, or a second native runner and a manifest
+      # merge. Add it when something actually deploys on arm — the failure is
+      # loud (`no matching manifest`), not silent.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
