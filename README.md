@@ -2,7 +2,7 @@
 
 This is a simple example of how to use [OpenAI](https://openai.com/) with [Vue.js](https://vuejs.org/).
 
-[![Build and deploy application](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/build-and-deploy.yml/badge.svg)](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/build-and-deploy.yml)
+[![CI](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/ci.yml/badge.svg)](https://github.com/vergissberlin/example-openai-vuejs/actions/workflows/ci.yml)
 
 The client talks to a small backend
 ([example-openai-server](https://github.com/vergissberlin/example-openai-server))
@@ -94,6 +94,37 @@ pnpm lint        # fixes what it can
 pnpm lint:check  # reports only, this is what CI runs
 pnpm format
 ```
+
+## Deployment (Coolify)
+
+The app ships as a container: the build runs in Node, and the output is served
+by nginx with an SPA fallback so client-side routes such as `/c/<id>` survive a
+reload.
+
+In Coolify, create an application from this repository with the **Docker
+Compose** build pack (`compose.yaml`), assign it a domain, and set:
+
+| Where | Name | Value |
+| --- | --- | --- |
+| **Build Variables** | `VITE_API_BASE_URL` | the backend url, e.g. `https://api.example.com` |
+
+**`VITE_API_BASE_URL` must be a build variable, not an environment variable.**
+Vite inlines `VITE_*` values into the bundle when it compiles; nothing reads
+them at runtime. Setting it as a plain environment variable is not an error —
+the container starts and serves happily, and every request goes to whatever url
+was baked in instead. The compose file fails the build if it is missing rather
+than letting that happen silently.
+
+The backend must allow this app's origin in its own `ALLOWED_ORIGINS`, since
+the two run on separate subdomains. A missing entry there shows up as a CORS
+error in the browser console and nothing else.
+
+Deployment used to go to GitHub Pages, which served the app from a subpath and
+needed a `404.html` redirect to make deep links work. Both are gone; CI now
+only verifies the code and builds the image.
+
+> One leftover: the Open Graph tags in `index.html` still name the old Pages
+> URL. Point them at the new domain once it is assigned.
 
 ## ToDo
 

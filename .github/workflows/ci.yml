@@ -1,19 +1,17 @@
-name: Build and deploy application
+name: CI
 
 on:
   push:
     branches: ['main']
   pull_request:
     branches: ['main']
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: 'pages-${{ github.ref }}'
+  group: 'ci-${{ github.ref }}'
   cancel-in-progress: true
 
 jobs:
@@ -60,30 +58,9 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-      - name: Upload pages artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './dist/'
-
-  # Deploy only after a merge to main. The original workflow also ran on
-  # pull_request, which meant any PR could publish itself to production —
-  # and the github-pages environment's deployment-branch protection rejects
-  # any ref other than main outright, so those runs failed regardless.
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: ci
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      # Deployment is Coolify's job now: it builds the image from the
+      # Dockerfile on push. This workflow only has to say whether the code is
+      # sound. It previously also published to GitHub Pages, which is switched
+      # off — see compose.yaml and the README.
+      - name: Build container image
+        run: docker build --build-arg VITE_API_BASE_URL=https://example.invalid -t example-openai-vuejs:ci .

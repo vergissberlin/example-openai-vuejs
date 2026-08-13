@@ -7,7 +7,9 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
 	plugins: [vue(), tailwindcss()],
-	base: process.env.NODE_ENV === 'production' ? '/example-openai-vuejs/' : '',
+	// No `base`: the app is served from the root of its own domain, so vite's
+	// default of '/' is correct. It used to be '/example-openai-vuejs/' for
+	// GitHub Pages, which served it from a subpath.
 	resolve: {
 		alias: {
 			'@': fileURLToPath(new URL('./src', import.meta.url))

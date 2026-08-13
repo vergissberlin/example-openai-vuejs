@@ -33,16 +33,8 @@ const config: PlaywrightTestConfig = {
   use: {
     /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
     actionTimeout: 0,
-    /**
-     * Base URL to use in actions like `await page.goto('./')`.
-     * On CI the preview server serves the production build, which is mounted
-     * under vite's `base` — so the path has to be included or every
-     * navigation lands on a 404. Tests use relative urls ('./') for this
-     * reason.
-     */
-    baseURL: process.env.CI
-      ? 'http://localhost:5173/example-openai-vuejs/'
-      : 'http://localhost:5173',
+    /* Base URL to use in actions like `await page.goto('./')`. */
+    baseURL: 'http://localhost:5173',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry'
