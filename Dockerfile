@@ -17,6 +17,11 @@ COPY . .
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
+# Same rule, and the same silent failure: this one ends up in the Open Graph
+# tags, so getting it wrong means link previews point somewhere else entirely.
+ARG VITE_PUBLIC_URL
+ENV VITE_PUBLIC_URL=$VITE_PUBLIC_URL
+
 RUN pnpm build-only
 
 # Runtime stage: nothing but the static output and a web server.

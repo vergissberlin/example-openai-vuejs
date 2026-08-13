@@ -16,6 +16,11 @@ services:
         # request goes to the wrong host.
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:?set this to the backend url, e.g. https://api.example.com}
 
+        # This deployment's own address, for the Open Graph tags. Required for
+        # the same reason: unset it would silently fall back to the localhost
+        # default and every shared link would preview as localhost.
+        VITE_PUBLIC_URL: ${VITE_PUBLIC_URL:?set this to this app's own url, e.g. https://chat.example.com}
+
     # Coolify reads this to route the domain you assign.
     expose:
       - '8080'

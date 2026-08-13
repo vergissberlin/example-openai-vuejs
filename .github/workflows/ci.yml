@@ -63,4 +63,8 @@ jobs:
       # sound. It previously also published to GitHub Pages, which is switched
       # off — see compose.yaml and the README.
       - name: Build container image
-        run: docker build --build-arg VITE_API_BASE_URL=https://example.invalid -t example-openai-vuejs:ci .
+        run: |
+          docker build \
+            --build-arg VITE_API_BASE_URL=https://api.example.invalid \
+            --build-arg VITE_PUBLIC_URL=https://example.invalid \
+            -t example-openai-vuejs:ci .

@@ -107,8 +107,26 @@ markdown sanitiser landed before the key input existed.
 
 ## Deployment
 
-Built by GitHub Actions and published to GitHub Pages under
-`/example-openai-vuejs/`. Pages has no SPA fallback, so `public/404.html`
-stashes the requested url and hands it back to the app entry, which restores it
-into the history before the router boots — otherwise reloading `/c/<id>` is a
-hard 404.
+Shipped as a container and deployed by Coolify from `compose.yaml`: the build
+runs in Node, and nginx serves the output from the root of its own domain. The
+SPA fallback lives in `nginx.conf`, so a reloaded `/c/<id>` resolves through
+the router instead of 404ing.
+
+The backend runs on a separate subdomain, which means CORS applies: the
+client's origin has to appear in the server's `ALLOWED_ORIGINS`.
+
+`VITE_API_BASE_URL` and `VITE_PUBLIC_URL` are **build** arguments, not runtime
+variables. Vite inlines `VITE_*` values when it compiles, so passing them as
+container environment variables does nothing — and does nothing silently, since
+the app still starts and serves, pointing at whatever url was compiled in.
+
+`VITE_PUBLIC_URL` is substituted into `index.html` by a small plugin in
+`vite.config.ts` rather than by vite's built-in `%VITE_*%` replacement. That
+built-in leaves the placeholder verbatim when the variable is unset, so a
+forgotten build argument would ship the literal string `%VITE_PUBLIC_URL%` as
+the Open Graph url. The plugin falls back to the dev address instead — wrong,
+but at least a url.
+
+This used to deploy to GitHub Pages, which served the app from the
+`/example-openai-vuejs/` subpath and needed a `public/404.html` redirect to
+survive a reloaded deep link. Both are gone, and Pages is switched off.

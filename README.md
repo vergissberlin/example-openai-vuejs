@@ -107,13 +107,19 @@ Compose** build pack (`compose.yaml`), assign it a domain, and set:
 | Where | Name | Value |
 | --- | --- | --- |
 | **Build Variables** | `VITE_API_BASE_URL` | the backend url, e.g. `https://api.example.com` |
+| **Build Variables** | `VITE_PUBLIC_URL` | this app's own url, e.g. `https://chat.example.com` |
 
-**`VITE_API_BASE_URL` must be a build variable, not an environment variable.**
-Vite inlines `VITE_*` values into the bundle when it compiles; nothing reads
-them at runtime. Setting it as a plain environment variable is not an error —
-the container starts and serves happily, and every request goes to whatever url
-was baked in instead. The compose file fails the build if it is missing rather
-than letting that happen silently.
+**Both must be build variables, not environment variables.** Vite inlines
+`VITE_*` values into the bundle when it compiles; nothing reads them at runtime.
+Setting one as a plain environment variable is not an error — the container
+starts and serves happily, and every request goes to whatever url was baked in
+instead. The compose file fails the build if either is missing rather than
+letting that happen silently.
+
+`VITE_PUBLIC_URL` fills the Open Graph tags in `index.html`, which need
+absolute urls and are therefore wrong anywhere but the one deployment they were
+written for. A trailing slash is stripped, and unset falls back to
+`http://localhost:5173` for development.
 
 The backend must allow this app's origin in its own `ALLOWED_ORIGINS`, since
 the two run on separate subdomains. A missing entry there shows up as a CORS
@@ -122,9 +128,6 @@ error in the browser console and nothing else.
 Deployment used to go to GitHub Pages, which served the app from a subpath and
 needed a `404.html` redirect to make deep links work. Both are gone; CI now
 only verifies the code and builds the image.
-
-> One leftover: the Open Graph tags in `index.html` still name the old Pages
-> URL. Point them at the new domain once it is assigned.
 
 ## ToDo
 
