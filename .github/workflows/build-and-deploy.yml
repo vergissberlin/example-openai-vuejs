@@ -66,8 +66,10 @@ jobs:
         with:
           path: './dist/'
 
-  # Deploy only after a merge to main. The previous workflow also ran on
-  # pull_request, which meant any PR could publish itself to production.
+  # Deploy only after a merge to main. The original workflow also ran on
+  # pull_request, which meant any PR could publish itself to production —
+  # and the github-pages environment's deployment-branch protection rejects
+  # any ref other than main outright, so those runs failed regardless.
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: ci
