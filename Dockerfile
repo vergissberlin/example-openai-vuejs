@@ -37,6 +37,11 @@ COPY --from=build /app/dist /usr/share/nginx/html
 #                          served, so a broken startup cannot leak a page with
 #                          an unsubstituted url in its head.
 #   /opt/app-runtime       what the entrypoint renders. The only writable one.
+#
+# The base image has already dropped to uid 101, which cannot write to `/`, so
+# this one step needs root. It switches back immediately below — running the
+# server as root would give up what this base image exists to provide.
+USER root
 RUN mkdir -p /opt/app-template /opt/app-runtime \
 	&& mv /usr/share/nginx/html/index.html /opt/app-template/index.html \
 	&& rm -f /usr/share/nginx/html/config.js \
@@ -44,6 +49,8 @@ RUN mkdir -p /opt/app-template /opt/app-runtime \
 
 # The nginx image runs everything in here before starting the server.
 COPY --chmod=555 docker/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
+
+USER 101
 
 EXPOSE 8080
 

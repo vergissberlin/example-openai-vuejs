@@ -83,6 +83,16 @@ jobs:
             sleep 1
           done
 
+          # The Dockerfile needs root for one step and switches back. Forget
+          # the switch back and everything still works — just as root, which
+          # is the whole reason for the unprivileged base image.
+          echo '--- unprivileged ---'
+          uid=$(docker exec smoke id -u)
+          if [ "$uid" = '0' ]; then
+            echo 'the container runs as root' >&2
+            exit 1
+          fi
+
           echo '--- /config.js ---'
           curl -fsS -D /tmp/config-headers http://127.0.0.1:8080/config.js | tee /tmp/config.js
           grep -q 'apiBaseUrl: "https://api.example.com"' /tmp/config.js
