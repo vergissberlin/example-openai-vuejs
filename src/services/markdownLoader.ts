@@ -26,6 +26,20 @@ let loaded: MarkdownModule | null = null
  */
 const MATH_HINT = /\$/
 
+let mathEnabled = false
+
+/**
+ * Whether `renderIfLoaded` would already produce the final output for this
+ * source, maths included.
+ *
+ * Lets callers skip `prepare` once there is nothing left to fetch. Without it,
+ * a streaming message calls `prepare` for every token it receives.
+ */
+export function isReady(source: string): boolean {
+	if (!loaded) return false
+	return mathEnabled || !MATH_HINT.test(source)
+}
+
 export function loadMarkdown(): Promise<MarkdownModule> {
 	modulePromise ??= import('./markdown').then((module) => {
 		loaded = module
@@ -42,9 +56,10 @@ export function loadMarkdown(): Promise<MarkdownModule> {
  */
 export async function prepare(source: string): Promise<void> {
 	const module = await loadMarkdown()
-	if (MATH_HINT.test(source)) {
+	if (MATH_HINT.test(source) && !mathEnabled) {
 		try {
 			await module.enableMath()
+			mathEnabled = true
 		} catch (error) {
 			// Not fatal — the message still renders, with the formula left as
 			// source text. Logged rather than swallowed: a silent catch here

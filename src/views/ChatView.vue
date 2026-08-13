@@ -66,7 +66,9 @@ function applyPreset(input: string): string {
 
 /** Everything the model sees: system prompt, prior turns, the new message. */
 function buildRequestMessages(history: Message[], userText: string): Message[] {
-	const system = settings.defaultSystemPrompt.trim() || conversation.value?.systemPrompt?.trim()
+	// Conversation first: a per-chat prompt is the more specific setting, and
+	// the type documents it as overriding the global default.
+	const system = conversation.value?.systemPrompt?.trim() || settings.defaultSystemPrompt.trim()
 
 	return [
 		...(system

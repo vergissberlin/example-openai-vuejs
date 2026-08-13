@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { Message } from '../../types/chat'
-import { prepare, renderIfLoaded } from '../../services/markdownLoader'
+import { isReady, prepare, renderIfLoaded } from '../../services/markdownLoader'
 
 const props = defineProps<{ message: Message; canRegenerate?: boolean }>()
 const emit = defineEmits<{
@@ -35,8 +35,16 @@ watch(
 	() => props.message.content,
 	(content) => {
 		if (props.message.role !== 'assistant') return
-		// Re-checked as content streams in: a formula may only appear halfway
-		// through a response.
+
+		/*
+		 * Re-checked as content streams in, because a formula may only appear
+		 * halfway through a response — but skipped once everything needed is
+		 * loaded. Otherwise every token would queue another promise whose
+		 * resolution invalidates this component a second time, on top of the
+		 * invalidation the content change already causes.
+		 */
+		if (isReady(content)) return
+
 		prepare(content).then(() => {
 			rendererVersion.value += 1
 		})
