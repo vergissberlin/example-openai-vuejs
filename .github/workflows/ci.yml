@@ -179,3 +179,115 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # GitHub Pages, for the public demo. Two jobs because only the second needs
+  # the deployment environment and an id-token, and it is cheap to keep that
+  # privilege off the job that runs the build.
+  #
+  # Pages serves static files, so nothing here can be configured at startup the
+  # way the container is: the urls are compiled in. src/config.ts already falls
+  # back to the build-time value when no /config.js sets one, which is exactly
+  # this path.
+  pages-build:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          # Pages was switched off on this repository; this turns it back on
+          # with Actions as the source rather than requiring a click.
+          enablement: true
+
+      # A project site lives under /<repo>/, a custom domain at the root. Both
+      # come from the step above rather than being hardcoded, because that is
+      # the value that changes the day a domain is attached.
+      - name: Resolve this deployment's own urls
+        id: urls
+        run: |
+          set -euo pipefail
+          base_path='${{ steps.pages.outputs.base_path }}'
+          base_url='${{ steps.pages.outputs.base_url }}'
+
+          # vite wants a trailing slash on `base`; configure-pages does not
+          # promise one, and an empty value means the domain root.
+          case "$base_path" in
+            */) ;;
+            *) base_path="$base_path/" ;;
+          esac
+
+          echo "base_path=$base_path" >>"$GITHUB_OUTPUT"
+          echo "base_url=${base_url%/}" >>"$GITHUB_OUTPUT"
+          echo "base=$base_path  url=${base_url%/}"
+
+      - name: Build
+        env:
+          VITE_BASE: ${{ steps.urls.outputs.base_path }}
+          VITE_PUBLIC_URL: ${{ steps.urls.outputs.base_url }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VITE_API_BASE_URL" ]; then
+            echo 'VITE_API_BASE_URL is not set.' >&2
+            echo 'Pages serves static files, so the backend url has to be compiled' >&2
+            echo 'in. Set it as a repository *variable* under Settings -> Secrets' >&2
+            echo 'and variables -> Actions -> Variables. It is not a secret: it' >&2
+            echo 'ends up in the bundle either way.' >&2
+            echo 'Without it the deployed app would call http://localhost:3000.' >&2
+            exit 1
+          fi
+          pnpm build-only
+
+      # Pages has no rewrite rules, so a reloaded /c/<id> is a plain 404. It
+      # serves 404.html for those, and 404.html being the app itself lets the
+      # router resolve the path. The copy already carries base-prefixed asset
+      # urls, which is why it is made after the build rather than in public/.
+      #
+      # The response keeps its 404 status. Browsers render it regardless; it is
+      # only crawlers that see the difference, and this replaces a redirect
+      # hack that was worse on both counts.
+      - name: Add the SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  pages-deploy:
+    needs: pages-build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    # Not the workflow-wide group: cancelling a deployment mid-flight is worse
+    # than letting it finish and superseding it.
+    concurrency:
+      group: 'pages'
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

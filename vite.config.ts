@@ -48,9 +48,11 @@ function publicUrl(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
 	plugins: [vue(), tailwindcss(), publicUrl()],
-	// No `base`: the app is served from the root of its own domain, so vite's
-	// default of '/' is correct. It used to be '/example-openai-vuejs/' for
-	// GitHub Pages, which served it from a subpath.
+	// '/' for the container, which owns the root of its domain. GitHub Pages
+	// serves a project site from /<repo>/ instead, so its workflow passes the
+	// subpath in — taken from actions/configure-pages rather than hardcoded,
+	// because that value is also what a custom domain changes.
+	base: process.env.VITE_BASE || '/',
 	resolve: {
 		alias: {
 			'@': fileURLToPath(new URL('./src', import.meta.url))

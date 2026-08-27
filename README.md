@@ -156,9 +156,35 @@ The backend must allow this app's origin in its own `ALLOWED_ORIGINS`, since
 the two run on separate subdomains. A missing entry there shows up as a CORS
 error in the browser console and nothing else.
 
-Deployment used to go to GitHub Pages, which served the app from a subpath and
-needed a `404.html` redirect to make deep links work. Both are gone; CI now
-only verifies the code and builds the image.
+## Deployment (GitHub Pages)
+
+Runs alongside the container, from the same workflow, for a public demo that
+needs no infrastructure of its own. The workflow enables Pages itself, with
+Actions as the source, on every push — no manual step in *Settings → Pages*.
+
+Pages serves static files: there is no server to configure at startup, so
+unlike the container this path compiles its urls in at build time. Set one
+**repository variable**, under *Settings → Secrets and variables → Actions →
+Variables*:
+
+| Name | Value |
+| --- | --- |
+| `VITE_API_BASE_URL` | the backend url, e.g. `https://api.example.com` |
+
+Not a secret — it ends up in the bundle on the container path too — which is
+why it belongs in *Variables*, not *Secrets*. Without it the build fails
+outright rather than shipping an app that quietly calls
+`http://localhost:3000` in production.
+
+The base path and the app's own url are not configured by hand: the workflow
+reads them from `actions/configure-pages`, which reports `/<repo>/` for a
+project site or `/` once a custom domain is attached. Hardcoding either is what
+put the old GitHub Pages url in the Open Graph tags in the first place.
+
+Pages has no rewrite rules, so a reloaded `/c/<id>` would 404 on a plain static
+host. The workflow copies the built `index.html` to `404.html`; Pages serves
+that — at a 404 status, invisible to a browser — for any unmatched path, and
+the router takes it from there.
 
 ## ToDo
 
