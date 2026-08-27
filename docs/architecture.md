@@ -151,12 +151,30 @@ Three details that each caused a wrong-but-working state while this was built:
   the document root, which deliberately has no entry document, and `try_files
   $uri/` would match the root directory before ever reaching the rendered one.
 
-The build still knows both variables for the non-container path. The image is
+The build still knows both variables for the non-container path — which is no
+longer hypothetical: it is exactly what GitHub Pages below uses. The image is
 built with the sentinel `VITE_PUBLIC_URL=runtime`, which tells the plugin in
 `vite.config.ts` to leave the placeholder alone; the entrypoint refuses to start
 if it does not find one, so an image built any other way fails loudly instead of
 serving a url from whenever it was compiled.
 
-This used to deploy to GitHub Pages, which served the app from the
-`/example-openai-vuejs/` subpath and needed a `public/404.html` redirect to
-survive a reloaded deep link. Both are gone, and Pages is switched off.
+### GitHub Pages, alongside the container
+
+A second target from the same workflow, gated on the same `ci` job, for a demo
+that needs no infrastructure. Static hosting has no startup to configure, so
+this path is build-time all the way — the reverse of the container above.
+
+`vite.config.ts`'s `base` is a build-time counterpart to the runtime sentinel:
+`process.env.VITE_BASE`, defaulting to `/`. The Pages job sets it from
+`actions/configure-pages`'s `base_path` output rather than hardcoding
+`/example-openai-vuejs/`, which is what happened last time and is why the Open
+Graph tags eventually pointed at a url that no longer existed. The same output
+also feeds `VITE_PUBLIC_URL`, so a custom domain is a config change, not a code
+change.
+
+Pages has no rewrite rules — `nginx.conf`'s `try_files` has no equivalent here.
+The workflow's answer is `cp dist/index.html dist/404.html`: Pages serves that
+for any unmatched path at an actual 404 status, which the router then resolves
+client-side. The status staying 404 is deliberate — a search engine's crawler
+sees the truthful code, and a browser renders the body regardless, so nothing
+is lost by not spending a redirect on it.
